@@ -1,0 +1,109 @@
+# ============================================================
+# AI-Driven Proctored Exam Platform — .gitignore
+# Covers: Spring Boot, React/Vite, Python, Docker, IDEs
+# ============================================================
+
+# ─── Environment & Secrets ───────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.env
+
+# ─── Spring Boot / Java ──────────────────────────────────────
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/*.class
+backend/*.jar
+backend/*.war
+backend/*.ear
+backend/hs_err_pid*
+backend/.mvn/wrapper/maven-wrapper.properties.bak
+
+# ─── Python / AI Service ─────────────────────────────────────
+ai-service/__pycache__/
+ai-service/**/__pycache__/
+ai-service/*.pyc
+ai-service/*.pyo
+ai-service/*.pyd
+ai-service/.Python
+ai-service/env/
+ai-service/venv/
+ai-service/.venv/
+ai-service/.env
+ai-service/*.egg-info/
+ai-service/dist/
+ai-service/build/
+ai-service/.pytest_cache/
+ai-service/.mypy_cache/
+ai-service/.ruff_cache/
+
+# ML model weights (large binary files — download separately)
+ai-service/models/*.pt
+ai-service/models/*.pkl
+ai-service/models/*.dat
+ai-service/models/*.bin
+ai-service/models/*.onnx
+
+# ─── React / Node.js / Frontend ──────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/*.local
+frontend/coverage/
+frontend/.eslintcache
+
+# ─── Docker ──────────────────────────────────────────────────
+# Keep docker-compose.yml but ignore override files
+docker-compose.override.yml
+
+# ─── IDE & Editor ────────────────────────────────────────────
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Eclipse / STS
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/.nb-gradle/
+
+# ─── OS Files ────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ─── Logs ────────────────────────────────────────────────────
+*.log
+logs/
+*.log.*
+
+# ─── MinIO / Object Storage (local dev data) ─────────────────
+minio-data/
+data/
+
+# ─── Misc ────────────────────────────────────────────────────
+*.swp
+*.swo
+*~
+.cache/
+tmp/
+temp/
