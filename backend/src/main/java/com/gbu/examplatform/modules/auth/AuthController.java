@@ -50,16 +50,17 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    @Operation(summary = "Send password reset link to email")
+    @Operation(summary = "Send password reset link to email (link valid 30 min)")
     public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        // TODO: integrate with EmailService for password reset
+        authService.forgotPassword(request);
+        // Always return 200 to prevent email enumeration
         return ResponseEntity.ok(Map.of("message", "If that email exists, a reset link has been sent"));
     }
 
     @PostMapping("/reset-password")
-    @Operation(summary = "Reset password using token from email")
+    @Operation(summary = "Reset password using token from email (token valid 30 min)")
     public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
-        // TODO: validate token from Redis, update password
+        authService.resetPassword(request);
         return ResponseEntity.ok(Map.of("message", "Password reset successful"));
     }
 

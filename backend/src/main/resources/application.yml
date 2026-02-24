@@ -87,6 +87,9 @@ jwt:
 ai-service:
   base-url: ${AI_SERVICE_URL:http://localhost:8000}
 
+app:
+  base-url: ${APP_BASE_URL:http://localhost:3000}
+
 springdoc:
   api-docs:
     path: /api-docs

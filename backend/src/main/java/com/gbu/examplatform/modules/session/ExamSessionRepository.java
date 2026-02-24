@@ -15,26 +15,31 @@ import java.util.UUID;
 @Repository
 public interface ExamSessionRepository extends JpaRepository<ExamSession, UUID> {
 
-    // Find active session for a user in a specific exam
-    @Query("SELECT s FROM ExamSession s WHERE s.enrollment.user.id = :userId " +
-            "AND s.enrollment.exam.id = :examId AND s.submittedAt IS NULL AND s.isSuspended = false")
-    Optional<ExamSession> findActiveSessionByUserAndExam(@Param("userId") UUID userId,
-            @Param("examId") UUID examId);
+        // Find active session for a user in a specific exam
+        @Query("SELECT s FROM ExamSession s WHERE s.enrollment.user.id = :userId " +
+                        "AND s.enrollment.exam.id = :examId AND s.submittedAt IS NULL AND s.isSuspended = false")
+        Optional<ExamSession> findActiveSessionByUserAndExam(@Param("userId") UUID userId,
+                        @Param("examId") UUID examId);
 
-    // Any active session for a user (to prevent concurrent sessions)
-    @Query("SELECT s FROM ExamSession s WHERE s.enrollment.user.id = :userId " +
-            "AND s.submittedAt IS NULL AND s.isSuspended = false")
-    List<ExamSession> findActiveSessionsByUser(@Param("userId") UUID userId);
+        // Any active session for a user (to prevent concurrent sessions)
+        @Query("SELECT s FROM ExamSession s WHERE s.enrollment.user.id = :userId " +
+                        "AND s.submittedAt IS NULL AND s.isSuspended = false")
+        List<ExamSession> findActiveSessionsByUser(@Param("userId") UUID userId);
 
-    Optional<ExamSession> findByEnrollmentId(UUID enrollmentId);
+        Optional<ExamSession> findByEnrollmentId(UUID enrollmentId);
 
-    // Find sessions with stale heartbeat for auto-submission
-    @Query("SELECT s FROM ExamSession s WHERE s.submittedAt IS NULL " +
-            "AND s.isSuspended = false AND s.lastHeartbeatAt < :cutoff")
-    List<ExamSession> findStaleSessions(@Param("cutoff") Instant cutoff);
+        // Find sessions with stale heartbeat for auto-submission
+        @Query("SELECT s FROM ExamSession s WHERE s.submittedAt IS NULL " +
+                        "AND s.isSuspended = false AND s.lastHeartbeatAt < :cutoff")
+        List<ExamSession> findStaleSessions(@Param("cutoff") Instant cutoff);
 
-    // Active sessions with recent heartbeat (for proctor)
-    @Query("SELECT s FROM ExamSession s WHERE s.submittedAt IS NULL " +
-            "AND s.isSuspended = false AND s.lastHeartbeatAt > :recentCutoff")
-    Page<ExamSession> findActiveSessions(@Param("recentCutoff") Instant recentCutoff, Pageable pageable);
+        // Active sessions with recent heartbeat (for proctor)
+        @Query("SELECT s FROM ExamSession s WHERE s.submittedAt IS NULL " +
+                        "AND s.isSuspended = false AND s.lastHeartbeatAt > :recentCutoff")
+        Page<ExamSession> findActiveSessions(@Param("recentCutoff") Instant recentCutoff, Pageable pageable);
+
+        // All active sessions for a specific exam (used for end-time auto-submit)
+        @Query("SELECT s FROM ExamSession s WHERE s.enrollment.exam.id = :examId " +
+                        "AND s.submittedAt IS NULL AND s.isSuspended = false")
+        List<ExamSession> findActiveSessionsByExamId(@Param("examId") UUID examId);
 }

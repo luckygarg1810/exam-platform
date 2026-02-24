@@ -2,6 +2,9 @@ package com.gbu.examplatform.scheduler;
 
 import com.gbu.examplatform.modules.exam.Exam;
 import com.gbu.examplatform.modules.exam.ExamRepository;
+import com.gbu.examplatform.modules.session.ExamSession;
+import com.gbu.examplatform.modules.session.ExamSessionRepository;
+import com.gbu.examplatform.modules.session.ExamSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,9 +20,11 @@ import java.util.List;
 public class ExamScheduler {
 
     private final ExamRepository examRepository;
+    private final ExamSessionRepository sessionRepository;
+    private final ExamSessionService sessionService;
 
     /**
-     * Every minute: PUBLISHED → ONGOING when start_time passes
+     * Every minute at :00 — PUBLISHED → ONGOING when start_time passes.
      */
     @Scheduled(cron = "0 * * * * *")
     @Transactional
@@ -36,7 +41,12 @@ public class ExamScheduler {
     }
 
     /**
-     * Every minute: ONGOING → COMPLETED when end_time passes
+     * Every minute at :30 — ONGOING → COMPLETED when end_time passes,
+     * then immediately auto-submits ALL still-active sessions for those exams.
+     *
+     * This guarantees sessions are closed exactly at endTime even if the student's
+     * browser is still open and sending heartbeats (the stale-session scheduler
+     * alone would only catch them 10+ minutes later).
      */
     @Scheduled(cron = "30 * * * * *")
     @Transactional
@@ -45,10 +55,33 @@ public class ExamScheduler {
         List<Exam> toComplete = examRepository.findByStatusAndEndTimeBeforeAndIsDeletedFalse(
                 Exam.ExamStatus.ONGOING, now);
 
-        if (!toComplete.isEmpty()) {
-            toComplete.forEach(e -> e.setStatus(Exam.ExamStatus.COMPLETED));
-            examRepository.saveAll(toComplete);
-            log.info("Transitioned {} exam(s) to COMPLETED", toComplete.size());
+        if (toComplete.isEmpty())
+            return;
+
+        // 1. Mark exams COMPLETED
+        toComplete.forEach(e -> e.setStatus(Exam.ExamStatus.COMPLETED));
+        examRepository.saveAll(toComplete);
+        log.info("Transitioned {} exam(s) to COMPLETED", toComplete.size());
+
+        // 2. Auto-submit every open session for those exams
+        for (Exam exam : toComplete) {
+            List<ExamSession> activeSessions = sessionRepository.findActiveSessionsByExamId(exam.getId());
+
+            for (ExamSession session : activeSessions) {
+                try {
+                    sessionService.submitSession(session.getId());
+                    log.info("Auto-submitted session {} (exam '{}' ended)",
+                            session.getId(), exam.getTitle());
+                } catch (Exception ex) {
+                    log.error("Failed to auto-submit session {} for exam {}: {}",
+                            session.getId(), exam.getId(), ex.getMessage());
+                }
+            }
+
+            if (!activeSessions.isEmpty()) {
+                log.info("Auto-submitted {} session(s) for completed exam '{}'",
+                        activeSessions.size(), exam.getTitle());
+            }
         }
     }
 }

@@ -3,6 +3,7 @@ package com.gbu.examplatform.modules.auth;
 import com.gbu.examplatform.exception.BusinessException;
 import com.gbu.examplatform.exception.ResourceNotFoundException;
 import com.gbu.examplatform.modules.auth.dto.*;
+import com.gbu.examplatform.modules.notification.EmailService;
 import com.gbu.examplatform.modules.user.User;
 import com.gbu.examplatform.modules.user.UserRepository;
 import com.gbu.examplatform.security.JwtTokenProvider;
@@ -26,12 +27,16 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final EmailService emailService;
 
     @Value("${jwt.access-token-expiry-ms:3600000}")
     private long accessTokenExpiryMs;
 
     @Value("${jwt.refresh-token-expiry-ms:604800000}")
     private long refreshTokenExpiryMs;
+
+    @Value("${app.base-url:http://localhost:3000}")
+    private String appBaseUrl;
 
     @Transactional
     public TokenResponse register(RegisterRequest request) {
@@ -123,6 +128,47 @@ public class AuthService {
                 .name(user.getName())
                 .role(user.getRole())
                 .build();
+    }
+
+    /**
+     * Generates a password reset token, stores it in Redis (30 min TTL),
+     * and sends a reset link email asynchronously.
+     * Silently succeeds if the email is not found (prevents email enumeration).
+     */
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+            String token = UUID.randomUUID().toString();
+            refreshTokenService.storePasswordResetToken(request.getEmail(), token);
+
+            String resetLink = appBaseUrl + "/reset-password?token=" + token;
+            emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), resetLink);
+            log.info("Password reset email queued for: {}", user.getEmail());
+        });
+    }
+
+    /**
+     * Validates the reset token from Redis, updates the user's password,
+     * then invalidates the token so it can't be reused.
+     */
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        String email = refreshTokenService.getEmailByResetToken(request.getToken());
+        if (email == null) {
+            throw new BusinessException("Invalid or expired password reset token");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", email));
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        // Invalidate the reset token and any existing refresh tokens
+        refreshTokenService.deletePasswordResetToken(request.getToken());
+        refreshTokenService.deleteRefreshToken(user.getId().toString());
+
+        log.info("Password reset successfully for: {}", email);
     }
 
     private TokenResponse buildTokenResponse(User user) {
