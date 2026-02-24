@@ -60,10 +60,12 @@ public class ProctoringEvent {
 
     public enum EventType {
         // Vision events (AI)
-        FACE_MISSING, MULTIPLE_FACES, GAZE_AWAY, MOUTH_OPEN,
+        FACE_MISSING, MULTIPLE_FACES, MULTIPLE_PERSONS, GAZE_AWAY, MOUTH_OPEN,
         PHONE_DETECTED, NOTES_DETECTED,
         // Audio events (AI)
         AUDIO_SPEECH,
+        // Behaviour events (AI — XGBoost / rule-based)
+        SUSPICIOUS_BEHAVIOR,
         // Browser/behavior events
         TAB_SWITCH, FULLSCREEN_EXIT, COPY_PASTE,
         // Manual/system

@@ -20,9 +20,14 @@ public class RabbitMQConfig {
     public static final String BEHAVIOR_EVENTS_QUEUE = "behavior.events";
     public static final String PROCTORING_RESULTS_QUEUE = "proctoring.results";
 
-    // Dead-letter infrastructure (captures messages that fail processing)
+    // Dead-letter infrastructure for proctoring.results (captures messages that
+    // fail processing)
     public static final String DLX_NAME = "proctoring.dlx";
     public static final String PROCTORING_RESULTS_DLQ = "proctoring.results.dlq";
+
+    // Dead-letter infrastructure for AI inbound queues (Issue 42)
+    public static final String AI_DLX_NAME = "ai.dlx";
+    public static final String AI_DLQ = "ai.dlq";
 
     // Routing keys
     public static final String FRAME_ROUTING_KEY = "frame.analysis";
@@ -37,17 +42,25 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue frameAnalysisQueue() {
-        return QueueBuilder.durable(FRAME_ANALYSIS_QUEUE).build();
+        // Dead-letter failed AI messages to ai.dlx instead of discarding them (Issue
+        // 42)
+        return QueueBuilder.durable(FRAME_ANALYSIS_QUEUE)
+                .withArgument("x-dead-letter-exchange", AI_DLX_NAME)
+                .build();
     }
 
     @Bean
     public Queue audioAnalysisQueue() {
-        return QueueBuilder.durable(AUDIO_ANALYSIS_QUEUE).build();
+        return QueueBuilder.durable(AUDIO_ANALYSIS_QUEUE)
+                .withArgument("x-dead-letter-exchange", AI_DLX_NAME)
+                .build();
     }
 
     @Bean
     public Queue behaviorEventsQueue() {
-        return QueueBuilder.durable(BEHAVIOR_EVENTS_QUEUE).build();
+        return QueueBuilder.durable(BEHAVIOR_EVENTS_QUEUE)
+                .withArgument("x-dead-letter-exchange", AI_DLX_NAME)
+                .build();
     }
 
     @Bean
@@ -75,6 +88,25 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(proctoringResultsDlq())
                 .to(deadLetterExchange())
                 .with(PROCTORING_RESULTS_QUEUE);
+    }
+
+    /**
+     * Fanout DLX for AI inbound queues — any nack'd AI message lands in ai.dlq
+     * (Issue 42)
+     */
+    @Bean
+    public FanoutExchange aiDeadLetterExchange() {
+        return ExchangeBuilder.fanoutExchange(AI_DLX_NAME).durable(true).build();
+    }
+
+    @Bean
+    public Queue aiDlq() {
+        return QueueBuilder.durable(AI_DLQ).build();
+    }
+
+    @Bean
+    public Binding aiDlqBinding() {
+        return BindingBuilder.bind(aiDlq()).to(aiDeadLetterExchange());
     }
 
     @Bean

@@ -164,10 +164,16 @@ public class ProctoringResultConsumer {
     // -----------------------------------------------------------------------
     private void updateCounters(ViolationSummary summary, ProctoringEvent.EventType eventType) {
         switch (eventType) {
-            case FACE_MISSING, GAZE_AWAY, MOUTH_OPEN ->
+            case FACE_MISSING ->
                 summary.setFaceAwayCount(summary.getFaceAwayCount() + 1);
+            case GAZE_AWAY ->
+                summary.setGazeAwayCount(summary.getGazeAwayCount() + 1);
+            case MOUTH_OPEN ->
+                summary.setMouthOpenCount(summary.getMouthOpenCount() + 1);
             case MULTIPLE_FACES ->
                 summary.setMultipleFaceCount(summary.getMultipleFaceCount() + 1);
+            case MULTIPLE_PERSONS ->
+                summary.setMultiplePersonsCount(summary.getMultiplePersonsCount() + 1);
             case PHONE_DETECTED ->
                 summary.setPhoneDetectedCount(summary.getPhoneDetectedCount() + 1);
             case AUDIO_SPEECH ->
@@ -185,6 +191,8 @@ public class ProctoringResultConsumer {
                 summary.setIdentityMismatchCount(summary.getIdentityMismatchCount() + 1);
             case MANUAL_FLAG ->
                 summary.setManualFlagCount(summary.getManualFlagCount() + 1);
+            case SUSPICIOUS_BEHAVIOR ->
+                summary.setSuspiciousBehaviorCount(summary.getSuspiciousBehaviorCount() + 1);
             default -> {
                 /* no counter for unrecognised types */ }
         }
@@ -194,9 +202,12 @@ public class ProctoringResultConsumer {
         return switch (eventType) {
             case FACE_MISSING -> "Warning: Your face is not visible. Please face the camera.";
             case MULTIPLE_FACES -> "Warning: Multiple faces detected. Only you should be visible.";
+            case MULTIPLE_PERSONS ->
+                "Warning: An extra person was detected in your environment. Please ensure you are alone.";
             case GAZE_AWAY -> "Warning: Please keep your eyes on the screen.";
             case PHONE_DETECTED -> "Warning: A mobile phone was detected. Remove it from view.";
             case AUDIO_SPEECH -> "Warning: Speech detected. Exams must be taken in silence.";
+            case SUSPICIOUS_BEHAVIOR -> "Warning: Suspicious activity pattern detected. Avoid irregular behaviour.";
             case TAB_SWITCH -> "Warning: Tab switching detected. Stay on the exam page.";
             case FULLSCREEN_EXIT -> "Warning: Fullscreen mode was exited. Please return to fullscreen.";
             default -> "Warning: A violation has been recorded for this session.";

@@ -31,6 +31,12 @@ public class QuestionService {
     public QuestionDto createQuestion(UUID examId, CreateQuestionRequest request) {
         Exam exam = findExam(examId);
 
+        // Reject mutations to live exams — matches the guard on
+        // updateQuestion/deleteQuestion (Issue 46)
+        if (exam.getStatus() == Exam.ExamStatus.PUBLISHED || exam.getStatus() == Exam.ExamStatus.ONGOING) {
+            throw new BusinessException("Questions cannot be added once an exam is PUBLISHED or ONGOING");
+        }
+
         if (request.getType() == Question.QuestionType.MCQ) {
             if (request.getOptions() == null || request.getOptions().size() < 2) {
                 throw new BusinessException("MCQ must have at least 2 options");
@@ -160,9 +166,12 @@ public class QuestionService {
 
     private QuestionDto toDto(Question q, boolean hideAnswer) {
         List<Question.McqOption> opts = q.getOptions();
-        // For MCQ with shuffle enabled, shuffle options per call
         if (q.getType() == Question.QuestionType.MCQ && opts != null) {
             opts = new ArrayList<>(opts);
+            // Shuffle options when the exam has shuffleOptions enabled (Issue 48)
+            if (Boolean.TRUE.equals(q.getExam().getShuffleOptions())) {
+                Collections.shuffle(opts);
+            }
         }
         return QuestionDto.builder()
                 .id(q.getId())

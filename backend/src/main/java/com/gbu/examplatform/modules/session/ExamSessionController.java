@@ -75,6 +75,20 @@ public class ExamSessionController {
                         body.getMarksAwarded(), body.getComment()));
     }
 
+    @PostMapping("/{sessionId}/verify-identity")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Verify student identity by comparing a live selfie with the stored ID photo")
+    public ResponseEntity<ExamSessionService.VerifyIdentityResultDto> verifyIdentity(
+            @PathVariable UUID sessionId,
+            @RequestBody VerifyIdentityRequest body) {
+        return ResponseEntity.ok(sessionService.verifyIdentity(sessionId, body.getSelfieBase64()));
+    }
+
+    @Data
+    static class VerifyIdentityRequest {
+        private String selfieBase64;
+    }
+
     @Data
     static class GradeRequest {
         private UUID questionId;

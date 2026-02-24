@@ -70,14 +70,17 @@ class FrameConsumer(BaseConsumer):
         object_result = object_detector.analyze(frame)
 
         vision = VisionResult(
-            face_present   = face_result["face_present"],
-            face_count     = face_result["face_count"],
-            gaze_off_screen= gaze_result["gaze_off_screen"],
-            eyes_closed    = gaze_result["eyes_closed"],
-            mouth_open     = mouth_result["mouth_open"],
-            phone_detected = object_result["phone_detected"],
-            notes_detected = object_result["notes_detected"],
-            extra_person   = object_result["extra_person"],
+            face_present     = face_result["face_present"],
+            face_count       = face_result["face_count"],
+            gaze_off_screen  = gaze_result["gaze_off_screen"],
+            eyes_closed      = gaze_result["eyes_closed"],
+            mouth_open       = mouth_result["mouth_open"],
+            phone_detected   = object_result["phone_detected"],
+            notes_detected   = object_result["notes_detected"],
+            extra_person     = object_result["extra_person"],
+            # Forward real confidence scores so score_frame() uses them (Issue 44)
+            phone_confidence = object_result["phone_confidence"],
+            notes_confidence = object_result["notes_confidence"],
         )
 
         risk: RiskResult = score_frame(vision)

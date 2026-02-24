@@ -12,25 +12,33 @@ import com.gbu.examplatform.modules.notification.EmailService;
 import com.gbu.examplatform.modules.question.Question;
 import com.gbu.examplatform.modules.question.QuestionRepository;
 import com.gbu.examplatform.modules.notification.NotificationService;
+import com.gbu.examplatform.modules.proctoring.ProctoringEvent;
+import com.gbu.examplatform.modules.proctoring.ProctoringEventRepository;
 import com.gbu.examplatform.modules.proctoring.ViolationSummary;
 import com.gbu.examplatform.modules.proctoring.ViolationSummaryRepository;
 import com.gbu.examplatform.security.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -42,10 +50,15 @@ public class ExamSessionService {
     private final AnswerRepository answerRepository;
     private final QuestionRepository questionRepository;
     private final ViolationSummaryRepository violationSummaryRepository;
+    private final ProctoringEventRepository proctoringEventRepository;
     private final SecurityUtils securityUtils;
     private final RedisTemplate<String, String> redisTemplate;
     private final EmailService emailService;
     private final NotificationService notificationService;
+    private final RestTemplate restTemplate;
+
+    @Value("${ai-service.base-url}")
+    private String aiServiceBaseUrl;
 
     @Transactional
     public SessionDto startSession(UUID examId, HttpServletRequest request) {
@@ -121,6 +134,7 @@ public class ExamSessionService {
     @Transactional
     public void heartbeat(UUID sessionId) {
         ExamSession session = findSession(sessionId);
+        validateAccess(session); // prevent any student from keeping another student's session alive (Issue 50)
         session.setLastHeartbeatAt(Instant.now());
         sessionRepository.save(session);
 
@@ -182,7 +196,14 @@ public class ExamSessionService {
         return toDto(session);
     }
 
-    @Transactional
+    /**
+     * Suspends the session in its own transaction (REQUIRES_NEW) so the commit is
+     * independent of the caller's transaction. This prevents a rollback in the
+     * outer
+     * listener transaction (e.g. ProctoringResultConsumer) from un-writing the
+     * suspension after the STOMP notification has already been pushed (Issue 54).
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void suspendSession(UUID sessionId, String reason) {
         ExamSession session = findSession(sessionId);
 
@@ -231,9 +252,15 @@ public class ExamSessionService {
         List<Answer> answers = answerRepository.findBySessionId(session.getId());
         BigDecimal total = BigDecimal.ZERO;
 
+        // Batch-load all questions in one query to avoid N+1 (Issue 49)
+        List<UUID> questionIds = answers.stream()
+                .map(Answer::getQuestionId)
+                .collect(Collectors.toList());
+        Map<UUID, Question> questionMap = questionRepository.findAllById(questionIds)
+                .stream().collect(Collectors.toMap(Question::getId, q -> q));
+
         for (Answer answer : answers) {
-            Question question = questionRepository.findById(answer.getQuestionId())
-                    .orElse(null);
+            Question question = questionMap.get(answer.getQuestionId());
             if (question == null)
                 continue;
 
@@ -303,6 +330,7 @@ public class ExamSessionService {
                         "session=" + sessionId + "/question=" + questionId));
 
         answer.setMarksAwarded(marksAwarded.setScale(1, java.math.RoundingMode.HALF_UP));
+        answer.setGradingComment(comment); // persist the reviewer's note (Issue 53)
         answerRepository.save(answer);
 
         // Recalculate total score from all answers
@@ -330,6 +358,97 @@ public class ExamSessionService {
                 .newTotalScore(total)
                 .isPassed(passed)
                 .build();
+    }
+
+    /**
+     * Verifies the student's identity by comparing a live selfie (base64 JPEG/PNG)
+     * with the reference ID photo stored in MinIO for that user.
+     * Sets {@code session.identityVerified = true} on a successful match;
+     * records an {@link ProctoringEvent.EventType#IDENTITY_MISMATCH} event and
+     * increments the violation counter on failure. (Issue #22)
+     */
+    @Transactional
+    public VerifyIdentityResultDto verifyIdentity(UUID sessionId, String selfieBase64) {
+        ExamSession session = findSession(sessionId);
+        validateAccess(session);
+
+        if (session.getSubmittedAt() != null) {
+            throw new BusinessException("Session has already been submitted");
+        }
+        if (Boolean.TRUE.equals(session.getIsSuspended())) {
+            throw new BusinessException("Session is suspended");
+        }
+
+        UUID studentId = session.getEnrollment().getUser().getId();
+
+        // Call AI service identity verification endpoint
+        Map<String, String> requestBody = Map.of(
+                "live_selfie_base64", selfieBase64,
+                "student_id", studentId.toString());
+
+        boolean match;
+        double confidence;
+        try {
+            @SuppressWarnings("unchecked")
+            ResponseEntity<Map<String, Object>> response = (ResponseEntity<Map<String, Object>>) (ResponseEntity<?>) restTemplate
+                    .postForEntity(
+                            aiServiceBaseUrl + "/ai/verify-identity",
+                            requestBody,
+                            Map.class);
+            Map<String, Object> body = response.getBody();
+            match = Boolean.TRUE.equals(body != null ? body.get("match") : null);
+            confidence = body != null && body.get("confidence") instanceof Number n
+                    ? n.doubleValue()
+                    : 0.0;
+        } catch (Exception e) {
+            log.warn("Identity verification AI call failed for session {}: {}", sessionId, e.getMessage());
+            throw new BusinessException("Identity verification service is currently unavailable");
+        }
+
+        session.setIdentityVerified(match);
+        sessionRepository.save(session);
+
+        if (!match) {
+            // Persist proctoring event
+            ProctoringEvent event = ProctoringEvent.builder()
+                    .sessionId(sessionId)
+                    .eventType(ProctoringEvent.EventType.IDENTITY_MISMATCH)
+                    .severity(ProctoringEvent.Severity.CRITICAL)
+                    .confidence(confidence)
+                    .description("Identity verification failed: live face does not match reference photo")
+                    .source(ProctoringEvent.EventSource.SYSTEM)
+                    .build();
+            proctoringEventRepository.save(event);
+
+            // Increment violation counter
+            violationSummaryRepository.findBySession_Id(sessionId).ifPresent(summary -> {
+                summary.setIdentityMismatchCount(summary.getIdentityMismatchCount() + 1);
+                violationSummaryRepository.save(summary);
+            });
+
+            // Notify proctors
+            notificationService.broadcastProctorAlert(
+                    sessionId, "IDENTITY_MISMATCH", "CRITICAL",
+                    confidence, "Identity verification failed for student " + studentId);
+
+            log.warn("Identity mismatch: session={} student={} confidence={}", sessionId, studentId, confidence);
+        } else {
+            log.info("Identity verified: session={} student={} confidence={}", sessionId, studentId, confidence);
+        }
+
+        return VerifyIdentityResultDto.builder()
+                .sessionId(sessionId)
+                .match(match)
+                .confidence(confidence)
+                .build();
+    }
+
+    @Data
+    @Builder
+    public static class VerifyIdentityResultDto {
+        private UUID sessionId;
+        private boolean match;
+        private double confidence;
     }
 
     @Data

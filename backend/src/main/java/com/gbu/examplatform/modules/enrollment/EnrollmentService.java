@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,7 +65,13 @@ public class EnrollmentService {
                 .status(ExamEnrollment.EnrollmentStatus.REGISTERED)
                 .build();
 
-        return toDto(enrollmentRepository.save(enrollment));
+        // Catch the DB unique-constraint violation that occurs when two concurrent
+        // requests both pass the existsBy check before either save commits (Issue 51)
+        try {
+            return toDto(enrollmentRepository.save(enrollment));
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException("Already enrolled in this exam");
+        }
     }
 
     @Transactional

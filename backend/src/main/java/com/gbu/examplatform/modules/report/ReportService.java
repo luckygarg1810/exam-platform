@@ -70,9 +70,11 @@ public class ReportService {
             var user = s.getEnrollment().getUser();
             ViolationSummary vs = vsMap.get(s.getId());
             long totalViolations = vs == null ? 0
-                    : vs.getFaceAwayCount() + vs.getMultipleFaceCount() + vs.getPhoneDetectedCount()
-                            + vs.getAudioViolationCount() + vs.getTabSwitchCount()
-                            + vs.getFullscreenExitCount() + vs.getCopyPasteCount();
+                    : vs.getFaceAwayCount() + vs.getGazeAwayCount() + vs.getMouthOpenCount()
+                            + vs.getMultipleFaceCount() + vs.getMultiplePersonsCount()
+                            + vs.getPhoneDetectedCount() + vs.getAudioViolationCount()
+                            + vs.getTabSwitchCount() + vs.getFullscreenExitCount()
+                            + vs.getCopyPasteCount() + vs.getSuspiciousBehaviorCount();
             double riskScore = vs == null ? 0.0 : vs.getRiskScore();
 
             pw.printf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%d\",\"%.4f\",\"%s\"%n",
@@ -189,12 +191,16 @@ public class ReportService {
                 .sessionId(vs.getSession().getId())
                 .riskScore(vs.getRiskScore())
                 .faceAwayCount(vs.getFaceAwayCount())
+                .gazeAwayCount(vs.getGazeAwayCount())
+                .mouthOpenCount(vs.getMouthOpenCount())
                 .multipleFaceCount(vs.getMultipleFaceCount())
                 .phoneDetectedCount(vs.getPhoneDetectedCount())
                 .audioViolationCount(vs.getAudioViolationCount())
                 .tabSwitchCount(vs.getTabSwitchCount())
                 .fullscreenExitCount(vs.getFullscreenExitCount())
                 .copyPasteCount(vs.getCopyPasteCount())
+                .suspiciousBehaviorCount(vs.getSuspiciousBehaviorCount())
+                .multiplePersonsCount(vs.getMultiplePersonsCount())
                 .proctorFlag(vs.getProctorFlag())
                 .proctorNote(vs.getProctorNote())
                 .lastUpdatedAt(vs.getLastUpdatedAt())
@@ -280,12 +286,16 @@ public class ReportService {
         private UUID sessionId;
         private Double riskScore;
         private Integer faceAwayCount;
+        private Integer gazeAwayCount;
+        private Integer mouthOpenCount;
         private Integer multipleFaceCount;
         private Integer phoneDetectedCount;
         private Integer audioViolationCount;
         private Integer tabSwitchCount;
         private Integer fullscreenExitCount;
         private Integer copyPasteCount;
+        private Integer suspiciousBehaviorCount;
+        private Integer multiplePersonsCount;
         private Boolean proctorFlag;
         private String proctorNote;
         private Instant lastUpdatedAt;

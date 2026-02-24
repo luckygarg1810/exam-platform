@@ -121,7 +121,7 @@ def score_frame(vision: VisionResult) -> RiskResult:
     if face_missing:
         face_risk = 1.0
         violations.append({
-            "event_type":  "FACE_NOT_DETECTED",
+            "event_type":  "FACE_MISSING",
             "severity":    "HIGH",
             "confidence":  0.95,
             "description": "No face detected in frame.",
@@ -176,8 +176,15 @@ def score_frame(vision: VisionResult) -> RiskResult:
             "description": "Extra person detected in frame.",
         })
 
-    # Mouth open is LOW risk — include in violations list but low weight
+    # Mouth open is LOW risk — emit as violation so the counter is incremented (Issue 43)
     mouth_risk = 0.10 if vision.mouth_open else 0.0
+    if vision.mouth_open:
+        violations.append({
+            "event_type":  "MOUTH_OPEN",
+            "severity":    "LOW",
+            "confidence":  0.75,
+            "description": "Student's mouth is open during exam.",
+        })
 
     # ── Weighted sum (audio=0 here, scored separately) ────────────────────
     final_score = min(1.0, (
@@ -188,10 +195,10 @@ def score_frame(vision: VisionResult) -> RiskResult:
         + mouth_risk * 0.10
     ))
 
-    # Filter: only emit MEDIUM+ violations
+    # Filter: emit LOW+ violations (includes MOUTH_OPEN; Issue 43)
     emittable = [
         v for v in violations
-        if v["severity"] in ("MEDIUM", "HIGH", "CRITICAL")
+        if v["severity"] in ("LOW", "MEDIUM", "HIGH", "CRITICAL")
     ]
 
     return RiskResult(
@@ -208,7 +215,7 @@ def score_audio(audio: AudioResult) -> RiskResult:
     if audio.speech_detected:
         sev = "HIGH" if audio.speech_ratio > 0.50 else "MEDIUM"
         violations.append({
-            "event_type":  "SUSPICIOUS_AUDIO",
+            "event_type":  "AUDIO_SPEECH",
             "severity":    sev,
             "confidence":  round(audio.speech_ratio, 3),
             "description": (
@@ -235,7 +242,7 @@ def score_behaviour(features: BehaviourFeatures) -> RiskResult:
     if risk >= 0.30:
         sev = _severity(risk)
         violations.append({
-            "event_type":  "SUSPICIOUS_BEHAVIOR",
+            "event_type":  "SUSPICIOUS_BEHAVIOR",  # maps to SUSPICIOUS_BEHAVIOR in ProctoringEvent.EventType
             "severity":    sev,
             "confidence":  round(risk, 3),
             "description": (

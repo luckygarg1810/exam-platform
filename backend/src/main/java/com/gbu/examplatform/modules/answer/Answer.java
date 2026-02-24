@@ -36,6 +36,10 @@ public class Answer {
     @Column(name = "marks_awarded", precision = 4, scale = 1)
     private BigDecimal marksAwarded;
 
+    /** Proctor's grading comment for short-answer review (Issue 53) */
+    @Column(name = "grading_comment", columnDefinition = "TEXT")
+    private String gradingComment;
+
     @CreationTimestamp
     @Column(name = "saved_at")
     private Instant savedAt;

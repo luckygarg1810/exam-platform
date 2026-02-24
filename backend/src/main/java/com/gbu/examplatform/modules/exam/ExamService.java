@@ -14,7 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -61,21 +63,27 @@ public class ExamService {
     public Page<ExamDto> getExams(Pageable pageable) {
         String role = securityUtils.getCurrentUserRole();
 
+        Page<Exam> page;
         if ("ADMIN".equals(role)) {
-            return examRepository.findByIsDeletedFalse(pageable).map(this::toDto);
+            page = examRepository.findByIsDeletedFalse(pageable);
+        } else {
+            // Student sees PUBLISHED + ONGOING exams they're enrolled in or available
+            List<Exam.ExamStatus> studentStatuses = List.of(
+                    Exam.ExamStatus.PUBLISHED, Exam.ExamStatus.ONGOING, Exam.ExamStatus.COMPLETED);
+            UUID userId = securityUtils.getCurrentUserId();
+            page = examRepository.findByEnrolledUserAndStatuses(userId, studentStatuses, pageable);
         }
-
-        // Student sees PUBLISHED + ONGOING exams they're enrolled in or available
-        List<Exam.ExamStatus> studentStatuses = List.of(
-                Exam.ExamStatus.PUBLISHED, Exam.ExamStatus.ONGOING, Exam.ExamStatus.COMPLETED);
-        UUID userId = securityUtils.getCurrentUserId();
-        return examRepository.findByEnrolledUserAndStatuses(userId, studentStatuses, pageable).map(this::toDto);
+        // Bulk-fetch question counts for the page in one query (Issue 47)
+        Map<UUID, Long> countMap = buildQuestionCountMap(page.getContent());
+        return page.map(e -> toDto(e, countMap.getOrDefault(e.getId(), 0L)));
     }
 
     @Transactional(readOnly = true)
     public Page<ExamDto> getAvailableExams(Pageable pageable) {
         List<Exam.ExamStatus> statuses = List.of(Exam.ExamStatus.PUBLISHED, Exam.ExamStatus.ONGOING);
-        return examRepository.findByStatusInAndIsDeletedFalse(statuses, pageable).map(this::toDto);
+        Page<Exam> page = examRepository.findByStatusInAndIsDeletedFalse(statuses, pageable);
+        Map<UUID, Long> countMap = buildQuestionCountMap(page.getContent());
+        return page.map(e -> toDto(e, countMap.getOrDefault(e.getId(), 0L)));
     }
 
     @Transactional(readOnly = true)
@@ -149,6 +157,14 @@ public class ExamService {
             throw new BusinessException("Exam must have at least one question before publishing");
         }
 
+        // Validate sum of question marks equals totalMarks (Issue 52)
+        double marksSum = examRepository.sumQuestionMarks(examId);
+        if (Math.abs(marksSum - exam.getTotalMarks()) > 0.01) {
+            throw new BusinessException(
+                    "Sum of question marks (" + marksSum + ") does not match exam totalMarks (" + exam.getTotalMarks()
+                            + ")");
+        }
+
         if (!exam.getStartTime().isAfter(Instant.now())) {
             throw new BusinessException("Start time must be in the future");
         }
@@ -199,8 +215,29 @@ public class ExamService {
         return saved;
     }
 
+    /**
+     * Bulk-fetch question counts for a list of exams; returns a map keyed by exam
+     * ID (Issue 47)
+     */
+    private Map<UUID, Long> buildQuestionCountMap(List<Exam> exams) {
+        if (exams.isEmpty())
+            return Map.of();
+        List<UUID> ids = exams.stream().map(Exam::getId).collect(Collectors.toList());
+        return examRepository.countQuestionsForExams(ids).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> (Long) row[1]));
+    }
+
+    /**
+     * Single-exam path: still issues one COUNT query (used for
+     * create/publish/update responses)
+     */
     public ExamDto toDto(Exam exam) {
-        long questionCount = examRepository.countQuestions(exam.getId());
+        return toDto(exam, examRepository.countQuestions(exam.getId()));
+    }
+
+    private ExamDto toDto(Exam exam, long questionCount) {
         return ExamDto.builder()
                 .id(exam.getId())
                 .title(exam.getTitle())

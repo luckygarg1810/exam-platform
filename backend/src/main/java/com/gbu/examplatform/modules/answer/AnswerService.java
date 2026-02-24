@@ -2,6 +2,7 @@ package com.gbu.examplatform.modules.answer;
 
 import com.gbu.examplatform.exception.BusinessException;
 import com.gbu.examplatform.exception.ResourceNotFoundException;
+import com.gbu.examplatform.modules.question.QuestionRepository;
 import com.gbu.examplatform.modules.session.ExamSession;
 import com.gbu.examplatform.modules.session.ExamSessionRepository;
 import com.gbu.examplatform.security.SecurityUtils;
@@ -23,6 +24,7 @@ public class AnswerService {
 
     private final AnswerRepository answerRepository;
     private final ExamSessionRepository sessionRepository;
+    private final QuestionRepository questionRepository;
     private final SecurityUtils securityUtils;
 
     @Transactional
@@ -35,6 +37,12 @@ public class AnswerService {
         if (Boolean.TRUE.equals(session.getIsSuspended())) {
             throw new BusinessException("Session is suspended");
         }
+
+        // Validate that the question belongs to this session's exam (Issue 45)
+        UUID examId = session.getEnrollment().getExam().getId();
+        questionRepository.findByIdAndExamId(request.getQuestionId(), examId)
+                .orElseThrow(() -> new ResourceNotFoundException("Question",
+                        request.getQuestionId().toString()));
 
         // Upsert: find existing or create new
         Answer answer = answerRepository.findBySessionIdAndQuestionId(sessionId, request.getQuestionId())

@@ -77,6 +77,30 @@ public class ViolationSummary {
     @Builder.Default
     private Integer manualFlagCount = 0;
 
+    /** Counter for AI behaviour-analysis violations (Issue 39) */
+    @Column(name = "suspicious_behavior_count")
+    @Builder.Default
+    private Integer suspiciousBehaviorCount = 0;
+
+    /** Counter for extra-person-in-room detections (Issue 40) */
+    @Column(name = "multiple_persons_count")
+    @Builder.Default
+    private Integer multiplePersonsCount = 0;
+
+    /**
+     * Counter for gaze-away violations — separated from faceAwayCount (Issue 41)
+     */
+    @Column(name = "gaze_away_count")
+    @Builder.Default
+    private Integer gazeAwayCount = 0;
+
+    /**
+     * Counter for mouth-open violations — separated from faceAwayCount (Issue 41)
+     */
+    @Column(name = "mouth_open_count")
+    @Builder.Default
+    private Integer mouthOpenCount = 0;
+
     @Column(name = "proctor_flag")
     @Builder.Default
     private Boolean proctorFlag = false;

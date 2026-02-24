@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -23,4 +24,11 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
     long countByExamId(UUID examId);
 
     void deleteByExamId(UUID examId);
+
+    /**
+     * Verifies a question exists within a specific exam — used by AnswerService
+     * (Issue 45)
+     */
+    @Query("SELECT q FROM Question q WHERE q.id = :id AND q.exam.id = :examId")
+    Optional<Question> findByIdAndExamId(@Param("id") UUID id, @Param("examId") UUID examId);
 }
