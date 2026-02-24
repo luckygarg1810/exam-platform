@@ -132,7 +132,7 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_URL: http://ai-service:8001
     ports:
       - "8080:8080"
     depends_on:
@@ -151,29 +151,55 @@ services:
       retries: 5
       start_period: 60s
 
-  # # ─────────────────────────────────────────────────────────────────
-  # # Python AI Service (stub – to be implemented separately)
-  # # ─────────────────────────────────────────────────────────────────
-  # ai-service:
-  #   build:
-  #     context: ./ai-service
-  #     dockerfile: Dockerfile
-  #   container_name: exam-ai-service
-  #   restart: unless-stopped
-  #   environment:
-  #     RABBITMQ_HOST: rabbitmq
-  #     RABBITMQ_USER: ${RABBITMQ_USER:-examuser}
-  #     RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-exampassword}
-  #     MINIO_ENDPOINT: http://minio:9000
-  #     MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-  #     MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-miniopassword}
-  #   depends_on:
-  #     rabbitmq:
-  #       condition: service_healthy
-  #     minio:
-  #       condition: service_healthy
-  #   ports:
-  #     - "8000:8000"
+  # ─────────────────────────────────────────────────────────────────
+  # Python AI Service (proctoring vision, audio, behaviour)
+  # ─────────────────────────────────────────────────────────────────
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: exam-ai-service
+    restart: unless-stopped
+    environment:
+      # Database (read-only queries for session validation)
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-examdb}
+      DB_USER: ${DB_USER:-examuser}
+      DB_PASSWORD: ${DB_PASSWORD:-exampassword}
+      # RabbitMQ
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-examuser}:${RABBITMQ_PASSWORD:-exampassword}@rabbitmq:5672/
+      # MinIO
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-miniopassword}
+      MINIO_SECURE: "false"
+      # Tuning
+      FACE_CONFIDENCE_THRESHOLD: "0.7"
+      GAZE_YAW_THRESHOLD: "25"
+      GAZE_PITCH_THRESHOLD: "25"
+      LIP_DISTANCE_THRESHOLD: "0.06"
+      PHONE_CONFIDENCE_THRESHOLD: "0.50"
+      NOTES_CONFIDENCE_THRESHOLD: "0.55"
+      SPEECH_RATIO_THRESHOLD: "0.20"
+      FACE_RECOGNITION_THRESHOLD: "0.6"
+    volumes:
+      - ai_models:/app/models      # persist downloaded YOLO weights + trained XGBoost
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s      # allow time for model downloads on first run
 
   # # ─────────────────────────────────────────────────────────────────
   # # React Frontend
@@ -213,3 +239,4 @@ volumes:
   rabbitmq_data:
   minio_data:
   pgadmin_data:
+  ai_models:
