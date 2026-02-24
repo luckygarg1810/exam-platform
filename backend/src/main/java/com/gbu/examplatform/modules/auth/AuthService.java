@@ -48,7 +48,7 @@ public class AuthService {
                 .name(request.getName())
                 .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .role(request.getRole())
+                .role(User.Role.STUDENT) // Self-registration is always STUDENT; admins/proctors are created via DB
                 .universityRoll(request.getUniversityRoll())
                 .department(request.getDepartment())
                 .isActive(true)

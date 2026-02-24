@@ -1,5 +1,7 @@
 package com.gbu.examplatform.modules.report;
 
+import com.gbu.examplatform.exception.UnauthorizedAccessException;
+import com.gbu.examplatform.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ import java.util.UUID;
 public class ReportController {
 
     private final ReportService reportService;
+    private final SecurityUtils securityUtils;
 
     @GetMapping("/exams/{examId}/results")
     @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
@@ -59,10 +62,15 @@ public class ReportController {
     }
 
     @GetMapping("/students/{userId}/history")
-    @PreAuthorize("hasAnyRole('ADMIN','STUDENT')")
-    @Operation(summary = "Exam history for a student")
+    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR','STUDENT')")
+    @Operation(summary = "Exam history for a student. Students can only view their own history.")
     public ResponseEntity<List<ReportService.SessionResultDto>> getStudentHistory(
             @PathVariable UUID userId) {
+        // Students may only access their own history; admins and proctors can access
+        // any student's
+        if (securityUtils.isStudent() && !securityUtils.getCurrentUserId().equals(userId)) {
+            throw new UnauthorizedAccessException("You can only view your own exam history");
+        }
         return ResponseEntity.ok(reportService.getStudentHistory(userId));
     }
 }

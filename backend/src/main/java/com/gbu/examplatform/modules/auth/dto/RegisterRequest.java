@@ -1,6 +1,5 @@
 package com.gbu.examplatform.modules.auth.dto;
 
-import com.gbu.examplatform.modules.user.User;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -19,9 +18,6 @@ public class RegisterRequest {
     @Size(min = 8, message = "Password must be at least 8 characters")
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).*$", message = "Password must contain uppercase, lowercase, and a digit")
     private String password;
-
-    @NotNull(message = "Role is required")
-    private User.Role role;
 
     private String universityRoll;
 
