@@ -3,7 +3,6 @@ package com.gbu.examplatform.modules.report;
 import com.gbu.examplatform.exception.ResourceNotFoundException;
 import com.gbu.examplatform.modules.answer.Answer;
 import com.gbu.examplatform.modules.answer.AnswerRepository;
-import com.gbu.examplatform.modules.exam.Exam;
 import com.gbu.examplatform.modules.exam.ExamRepository;
 import com.gbu.examplatform.modules.proctoring.ProctoringEvent;
 import com.gbu.examplatform.modules.proctoring.ProctoringEventRepository;
@@ -23,6 +22,7 @@ import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -46,16 +46,21 @@ public class ReportService {
     public Page<SessionResultDto> getExamResults(UUID examId, Pageable pageable) {
         examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
-        return sessionRepository.findByExamId(examId, pageable).map(this::toResultDto);
+        Page<ExamSession> page = sessionRepository.findByExamId(examId, pageable);
+        // Bulk-fetch summaries for the whole page in a single query (Issue 19)
+        Map<UUID, ViolationSummary> vsMap = buildVsMap(page.getContent());
+        return page.map(s -> toResultDto(s, vsMap.get(s.getId())));
     }
 
     /** CSV export for an exam */
     @Transactional(readOnly = true)
     public String exportExamResultsCsv(UUID examId) {
-        Exam exam = examRepository.findById(examId)
+        examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
 
         List<ExamSession> sessions = sessionRepository.findAllByExamId(examId);
+        // Bulk-fetch summaries to avoid N+1 (Issue 19)
+        Map<UUID, ViolationSummary> vsMap = buildVsMap(sessions);
 
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
@@ -63,7 +68,7 @@ public class ReportService {
 
         for (ExamSession s : sessions) {
             var user = s.getEnrollment().getUser();
-            ViolationSummary vs = violationSummaryRepository.findBySession_Id(s.getId()).orElse(null);
+            ViolationSummary vs = vsMap.get(s.getId());
             long totalViolations = vs == null ? 0
                     : vs.getFaceAwayCount() + vs.getMultipleFaceCount() + vs.getPhoneDetectedCount()
                             + vs.getAudioViolationCount() + vs.getTabSwitchCount()
@@ -100,10 +105,12 @@ public class ReportService {
         ViolationSummary vs = violationSummaryRepository.findBySession_Id(sessionId).orElse(null);
 
         return FullSessionReportDto.builder()
-                .session(toResultDto(session))
+                .session(toResultDto(session, vs))
                 .answers(answers.stream().map(this::toAnswerSummary).collect(Collectors.toList()))
-                .events(events)
-                .violationSummary(vs)
+                // Map to DTO to avoid leaking JPA entity structure / lazy-load issues (Issue
+                // 18)
+                .events(events.stream().map(this::toEventDto).collect(Collectors.toList()))
+                .violationSummary(vs != null ? toViolationSummaryDto(vs) : null)
                 .build();
     }
 
@@ -113,9 +120,10 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public List<SessionResultDto> getStudentHistory(UUID userId) {
-        return sessionRepository.findByUserId(userId)
-                .stream()
-                .map(this::toResultDto)
+        List<ExamSession> sessions = sessionRepository.findByUserId(userId);
+        Map<UUID, ViolationSummary> vsMap = buildVsMap(sessions);
+        return sessions.stream()
+                .map(s -> toResultDto(s, vsMap.get(s.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -123,11 +131,22 @@ public class ReportService {
     // Internal helpers
     // -----------------------------------------------------------------------
 
-    private SessionResultDto toResultDto(ExamSession s) {
+    /**
+     * Bulk-fetch violation summaries for a list of sessions in one query.
+     * Returns a map keyed by session ID. (Issue 19)
+     */
+    private Map<UUID, ViolationSummary> buildVsMap(List<ExamSession> sessions) {
+        if (sessions.isEmpty())
+            return Map.of();
+        List<UUID> ids = sessions.stream().map(ExamSession::getId).collect(Collectors.toList());
+        return violationSummaryRepository.findBySessionIds(ids)
+                .stream().collect(Collectors.toMap(vs -> vs.getSession().getId(), vs -> vs));
+    }
+
+    private SessionResultDto toResultDto(ExamSession s, ViolationSummary vs) {
         var enrollment = s.getEnrollment();
         var user = enrollment.getUser();
         var exam = enrollment.getExam();
-        ViolationSummary vs = violationSummaryRepository.findBySession_Id(s.getId()).orElse(null);
 
         return SessionResultDto.builder()
                 .sessionId(s.getId())
@@ -146,6 +165,41 @@ public class ReportService {
                 .proctorFlagged(vs != null && Boolean.TRUE.equals(vs.getProctorFlag()))
                 .startedAt(s.getStartedAt())
                 .submittedAt(s.getSubmittedAt())
+                .build();
+    }
+
+    /** Maps a ProctoringEvent JPA entity to a pure-POJO DTO (Issue 18) */
+    private ProctoringEventDto toEventDto(ProctoringEvent e) {
+        return ProctoringEventDto.builder()
+                .id(e.getId())
+                .sessionId(e.getSessionId())
+                .eventType(e.getEventType() != null ? e.getEventType().name() : null)
+                .severity(e.getSeverity() != null ? e.getSeverity().name() : null)
+                .source(e.getSource() != null ? e.getSource().name() : null)
+                .confidence(e.getConfidence())
+                .description(e.getDescription())
+                .snapshotPath(e.getSnapshotPath())
+                .metadata(e.getMetadata())
+                .createdAt(e.getCreatedAt())
+                .build();
+    }
+
+    /** Maps a ViolationSummary JPA entity to a pure-POJO DTO (Issue 18) */
+    private ViolationSummaryDto toViolationSummaryDto(ViolationSummary vs) {
+        return ViolationSummaryDto.builder()
+                .id(vs.getId())
+                .sessionId(vs.getSession().getId())
+                .riskScore(vs.getRiskScore())
+                .faceAwayCount(vs.getFaceAwayCount())
+                .multipleFaceCount(vs.getMultipleFaceCount())
+                .phoneDetectedCount(vs.getPhoneDetectedCount())
+                .audioViolationCount(vs.getAudioViolationCount())
+                .tabSwitchCount(vs.getTabSwitchCount())
+                .fullscreenExitCount(vs.getFullscreenExitCount())
+                .copyPasteCount(vs.getCopyPasteCount())
+                .proctorFlag(vs.getProctorFlag())
+                .proctorNote(vs.getProctorNote())
+                .lastUpdatedAt(vs.getLastUpdatedAt())
                 .build();
     }
 
@@ -201,7 +255,41 @@ public class ReportService {
     public static class FullSessionReportDto {
         private SessionResultDto session;
         private List<AnswerSummaryDto> answers;
-        private List<ProctoringEvent> events;
-        private ViolationSummary violationSummary;
+        /** Pure-POJO DTO — no JPA entity exposed in API response (Issue 18) */
+        private List<ProctoringEventDto> events;
+        private ViolationSummaryDto violationSummary;
+    }
+
+    @Data
+    @Builder
+    public static class ProctoringEventDto {
+        private Long id;
+        private UUID sessionId;
+        private String eventType;
+        private String severity;
+        private String source;
+        private Double confidence;
+        private String description;
+        private String snapshotPath;
+        private Map<String, Object> metadata;
+        private Instant createdAt;
+    }
+
+    @Data
+    @Builder
+    public static class ViolationSummaryDto {
+        private UUID id;
+        private UUID sessionId;
+        private Double riskScore;
+        private Integer faceAwayCount;
+        private Integer multipleFaceCount;
+        private Integer phoneDetectedCount;
+        private Integer audioViolationCount;
+        private Integer tabSwitchCount;
+        private Integer fullscreenExitCount;
+        private Integer copyPasteCount;
+        private Boolean proctorFlag;
+        private String proctorNote;
+        private Instant lastUpdatedAt;
     }
 }

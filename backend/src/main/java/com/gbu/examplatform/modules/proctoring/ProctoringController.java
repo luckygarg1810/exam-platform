@@ -1,6 +1,5 @@
 package com.gbu.examplatform.modules.proctoring;
 
-import com.gbu.examplatform.modules.notification.NotificationService;
 import com.gbu.examplatform.modules.session.ExamSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,7 +21,6 @@ public class ProctoringController {
 
     private final ProctoringService proctoringService;
     private final ExamSessionService sessionService;
-    private final NotificationService notificationService;
 
     @GetMapping("/sessions/{sessionId}/events")
     @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")

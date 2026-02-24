@@ -60,4 +60,9 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, UUID> 
         // All sessions for a specific student (history)
         @Query("SELECT s FROM ExamSession s WHERE s.enrollment.user.id = :userId ORDER BY s.startedAt DESC")
         List<ExamSession> findByUserId(@Param("userId") UUID userId);
+
+        // Ownership check: used by WebSocket handlers to verify a student owns a
+        // session
+        @Query("SELECT COUNT(s) FROM ExamSession s WHERE s.id = :id AND s.enrollment.user.id = :userId")
+        long countByIdAndUserId(@Param("id") UUID id, @Param("userId") UUID userId);
 }

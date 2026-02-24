@@ -5,10 +5,10 @@ import com.gbu.examplatform.modules.notification.NotificationService;
 import com.gbu.examplatform.modules.session.ExamSession;
 import com.gbu.examplatform.modules.session.ExamSessionRepository;
 import com.gbu.examplatform.modules.session.ExamSessionService;
+import com.gbu.examplatform.security.SecurityUtils;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -19,7 +19,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /**
  * STOMP WebSocket handler for proctoring media.
@@ -44,7 +43,7 @@ public class ExamWebSocketController {
     private final ExamSessionService sessionService;
     private final BehaviorEventRepository behaviorEventRepository;
     private final NotificationService notificationService;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final SecurityUtils securityUtils;
 
     // Tab-switch threshold for immediate warning
     private static final int TAB_SWITCH_WARN_THRESHOLD = 3;
@@ -152,15 +151,11 @@ public class ExamWebSocketController {
      */
     @MessageMapping("/exam/{sessionId}/heartbeat")
     public void handleHeartbeat(@DestinationVariable UUID sessionId) {
-        ExamSession session = validateSession(sessionId);
-        if (session == null)
+        // Delegate entirely to the service layer — avoids duplicating the DB +
+        // Redis logic that already lives in ExamSessionService.heartbeat() (Issue 15).
+        if (validateSession(sessionId) == null)
             return;
-
-        session.setLastHeartbeatAt(Instant.now());
-        sessionRepository.save(session);
-
-        // Refresh Redis presence key — 30 min rolling TTL
-        redisTemplate.opsForValue().set("session:active:" + sessionId, "1", 30, TimeUnit.MINUTES);
+        sessionService.heartbeat(sessionId);
         log.debug("Heartbeat received for session {}", sessionId);
     }
 
@@ -173,13 +168,31 @@ public class ExamWebSocketController {
      * Returns null and logs a warning if any check fails (WebSocket handlers can't
      * throw HTTP errors).
      */
+    /**
+     * Validates that a session exists, is open, and is owned by the current user.
+     * PROCTOR and ADMIN principals may interact with any session.
+     * Students are rejected if they do not own the session (Issue 16).
+     */
     private ExamSession validateSession(UUID sessionId) {
-        return sessionRepository.findById(sessionId)
+        ExamSession session = sessionRepository.findById(sessionId)
                 .filter(s -> s.getSubmittedAt() == null && !Boolean.TRUE.equals(s.getIsSuspended()))
                 .orElseGet(() -> {
                     log.warn("WebSocket message dropped: session {} is closed or suspended", sessionId);
                     return null;
                 });
+        if (session == null)
+            return null;
+
+        // Ownership check: only students need to own the session;
+        // proctors and admins may observe any session.
+        if (securityUtils.isStudent()) {
+            UUID currentUserId = securityUtils.getCurrentUserId();
+            if (sessionRepository.countByIdAndUserId(sessionId, currentUserId) == 0) {
+                log.warn("WebSocket message dropped: user {} does not own session {}", currentUserId, sessionId);
+                return null;
+            }
+        }
+        return session;
     }
 
     /**
