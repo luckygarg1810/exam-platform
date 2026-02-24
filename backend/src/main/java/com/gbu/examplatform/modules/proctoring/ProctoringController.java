@@ -1,5 +1,6 @@
 package com.gbu.examplatform.modules.proctoring;
 
+import com.gbu.examplatform.modules.notification.NotificationService;
 import com.gbu.examplatform.modules.session.ExamSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,10 +22,11 @@ public class ProctoringController {
 
     private final ProctoringService proctoringService;
     private final ExamSessionService sessionService;
+    private final NotificationService notificationService;
 
     @GetMapping("/sessions/{sessionId}/events")
     @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
-    @Operation(summary = "Get proctoring events for a session")
+    @Operation(summary = "Get proctoring events for a session (paginated)")
     public ResponseEntity<Page<ProctoringEvent>> getEvents(
             @PathVariable UUID sessionId,
             @RequestParam(defaultValue = "0") int page,
@@ -46,18 +48,26 @@ public class ProctoringController {
     public ResponseEntity<ProctoringEvent> addFlag(
             @PathVariable UUID sessionId,
             @RequestBody FlagRequest request) {
-        return ResponseEntity
-                .ok(proctoringService.addManualFlag(sessionId, request.getEventType(), request.getDescription()));
+        return ResponseEntity.ok(
+                proctoringService.addManualFlag(sessionId, request.getEventType(), request.getDescription()));
+    }
+
+    @PostMapping("/sessions/{sessionId}/clear")
+    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @Operation(summary = "Clear proctor flag (false positive)")
+    public ResponseEntity<Map<String, String>> clearFlag(@PathVariable UUID sessionId) {
+        proctoringService.clearProctorFlag(sessionId);
+        return ResponseEntity.ok(Map.of("message", "Flag cleared"));
     }
 
     @PostMapping("/sessions/{sessionId}/notes")
     @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
     @Operation(summary = "Add proctor notes to session")
-    public ResponseEntity<Map<String, String>> addNotes(
+    public ResponseEntity<Map<String, String>> addNote(
             @PathVariable UUID sessionId,
             @RequestBody Map<String, String> body) {
-        proctoringService.addProctorNotes(sessionId, body.get("notes"));
-        return ResponseEntity.ok(Map.of("message", "Notes saved"));
+        proctoringService.addProctorNote(sessionId, body.get("note"));
+        return ResponseEntity.ok(Map.of("message", "Note saved"));
     }
 
     @PostMapping("/sessions/{sessionId}/suspend")
@@ -66,7 +76,8 @@ public class ProctoringController {
     public ResponseEntity<ExamSessionService.SessionDto> suspend(
             @PathVariable UUID sessionId,
             @RequestBody Map<String, String> body) {
-        sessionService.suspendSession(sessionId, body.getOrDefault("reason", "Manually suspended by proctor"));
+        sessionService.suspendSession(sessionId,
+                body.getOrDefault("reason", "Manually suspended by proctor"));
         return ResponseEntity.ok(sessionService.getSession(sessionId));
     }
 

@@ -7,6 +7,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -18,9 +19,10 @@ import java.util.UUID;
 @Builder
 public class ProctoringEvent {
 
+    // Matches BIGSERIAL in V7 migration
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "session_id", nullable = false)
     private UUID sessionId;
@@ -40,12 +42,12 @@ public class ProctoringEvent {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "snapshot_path", length = 255)
+    @Column(name = "snapshot_path", length = 512)
     private String snapshotPath;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    private java.util.Map<String, Object> metadata;
+    private Map<String, Object> metadata;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -57,9 +59,15 @@ public class ProctoringEvent {
     private Instant createdAt;
 
     public enum EventType {
-        FACE_NOT_DETECTED, MULTIPLE_FACES, PHONE_DETECTED,
-        BOOK_DETECTED, GAZE_AWAY, TAB_SWITCH, COPY_PASTE,
-        NOISE_DETECTED, MANUAL_FLAG, IDENTITY_MISMATCH
+        // Vision events (AI)
+        FACE_MISSING, MULTIPLE_FACES, GAZE_AWAY, MOUTH_OPEN,
+        PHONE_DETECTED, NOTES_DETECTED,
+        // Audio events (AI)
+        AUDIO_SPEECH,
+        // Browser/behavior events
+        TAB_SWITCH, FULLSCREEN_EXIT, COPY_PASTE,
+        // Manual/system
+        MANUAL_FLAG, IDENTITY_MISMATCH
     }
 
     public enum Severity {
@@ -67,6 +75,6 @@ public class ProctoringEvent {
     }
 
     public enum EventSource {
-        AI, MANUAL, SYSTEM
+        AI, BROWSER, SYSTEM, MANUAL
     }
 }

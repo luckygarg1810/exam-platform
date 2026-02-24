@@ -89,8 +89,11 @@ public class RabbitMQConfig {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(jsonMessageConverter());
-        factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
+        // AUTO: Spring auto-acks on successful method return, nacks on exception
+        factory.setAcknowledgeMode(AcknowledgeMode.AUTO);
+        // Process one message at a time per listener — prevents AI result flooding
         factory.setPrefetchCount(1);
+        factory.setDefaultRequeueRejected(false); // don't re-queue on deserialization errors
         return factory;
     }
 }

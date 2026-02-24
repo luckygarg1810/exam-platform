@@ -8,5 +8,10 @@ import java.util.UUID;
 
 @Repository
 public interface ViolationSummaryRepository extends JpaRepository<ViolationSummary, UUID> {
-    Optional<ViolationSummary> findBySessionId(UUID sessionId);
+
+    /**
+     * Spring Data JPA path navigation: session.id
+     * Matches the OneToOne join column on ViolationSummary.session
+     */
+    Optional<ViolationSummary> findBySession_Id(UUID sessionId);
 }

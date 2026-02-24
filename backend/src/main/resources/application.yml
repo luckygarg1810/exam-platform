@@ -45,7 +45,7 @@ spring:
     virtual-host: /
     listener:
       simple:
-        acknowledge-mode: manual
+        acknowledge-mode: auto
         prefetch: 1
 
   mail:

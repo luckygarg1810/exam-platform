@@ -1,9 +1,8 @@
 package com.gbu.examplatform.modules.proctoring;
 
 import com.gbu.examplatform.exception.ResourceNotFoundException;
-import com.gbu.examplatform.modules.session.ExamSessionService;
-import lombok.Builder;
-import lombok.Data;
+import com.gbu.examplatform.modules.session.ExamSession;
+import com.gbu.examplatform.modules.session.ExamSessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,8 +11,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -23,7 +20,7 @@ public class ProctoringService {
 
     private final ProctoringEventRepository eventRepository;
     private final ViolationSummaryRepository summaryRepository;
-    private final ExamSessionService sessionService;
+    private final ExamSessionRepository sessionRepository;
 
     @Transactional(readOnly = true)
     public Page<ProctoringEvent> getSessionEvents(UUID sessionId, Pageable pageable) {
@@ -32,43 +29,55 @@ public class ProctoringService {
 
     @Transactional(readOnly = true)
     public ViolationSummary getSessionSummary(UUID sessionId) {
-        return summaryRepository.findBySessionId(sessionId)
+        return summaryRepository.findBySession_Id(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Violation summary", sessionId.toString()));
     }
 
     @Transactional
-    public ProctoringEvent addManualFlag(UUID sessionId, String eventType, String description) {
-        // Verify session exists
-        sessionService.getSession(sessionId);
+    public ProctoringEvent addManualFlag(UUID sessionId, String eventTypeStr, String description) {
+        ExamSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Session", sessionId.toString()));
+
+        ProctoringEvent.EventType eventType;
+        try {
+            eventType = ProctoringEvent.EventType.valueOf(eventTypeStr);
+        } catch (Exception e) {
+            eventType = ProctoringEvent.EventType.MANUAL_FLAG;
+        }
 
         ProctoringEvent event = ProctoringEvent.builder()
                 .sessionId(sessionId)
-                .eventType(ProctoringEvent.EventType.MANUAL_FLAG)
+                .eventType(eventType)
                 .severity(ProctoringEvent.Severity.HIGH)
                 .confidence(1.0)
                 .description(description)
                 .source(ProctoringEvent.EventSource.MANUAL)
                 .build();
-
         event = eventRepository.save(event);
 
-        // Update summary
-        ViolationSummary summary = summaryRepository.findBySessionId(sessionId)
-                .orElseGet(() -> ViolationSummary.builder().build());
-        summary.setProctorFlagged(true);
-        summary.setHighCount(summary.getHighCount() + 1);
-        summary.setTotalViolations(summary.getTotalViolations() + 1);
-        summary.setRiskScore(summary.getRiskScore() + 5.0);
+        // Upsert violation summary — set proctorFlag = true
+        ViolationSummary summary = summaryRepository.findBySession_Id(sessionId)
+                .orElseGet(() -> ViolationSummary.builder().session(session).build());
+        summary.setProctorFlag(true);
         summaryRepository.save(summary);
 
         return event;
     }
 
     @Transactional
-    public void addProctorNotes(UUID sessionId, String notes) {
-        ViolationSummary summary = summaryRepository.findBySessionId(sessionId)
+    public void clearProctorFlag(UUID sessionId) {
+        ViolationSummary summary = summaryRepository.findBySession_Id(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Violation summary", sessionId.toString()));
-        summary.setProctorNotes(notes);
+        summary.setProctorFlag(false);
+        summaryRepository.save(summary);
+        log.info("Proctor flag cleared for session {}", sessionId);
+    }
+
+    @Transactional
+    public void addProctorNote(UUID sessionId, String note) {
+        ViolationSummary summary = summaryRepository.findBySession_Id(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Violation summary", sessionId.toString()));
+        summary.setProctorNote(note);
         summaryRepository.save(summary);
     }
 }

@@ -42,4 +42,16 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, UUID> 
         @Query("SELECT s FROM ExamSession s WHERE s.enrollment.exam.id = :examId " +
                         "AND s.submittedAt IS NULL AND s.isSuspended = false")
         List<ExamSession> findActiveSessionsByExamId(@Param("examId") UUID examId);
+
+        // All sessions for an exam (for reports)
+        @Query("SELECT s FROM ExamSession s WHERE s.enrollment.exam.id = :examId")
+        Page<ExamSession> findByExamId(@Param("examId") UUID examId, Pageable pageable);
+
+        // All sessions for an exam without pagination (CSV export)
+        @Query("SELECT s FROM ExamSession s WHERE s.enrollment.exam.id = :examId")
+        List<ExamSession> findAllByExamId(@Param("examId") UUID examId);
+
+        // All sessions for a specific student (history)
+        @Query("SELECT s FROM ExamSession s WHERE s.enrollment.user.id = :userId ORDER BY s.startedAt DESC")
+        List<ExamSession> findByUserId(@Param("userId") UUID userId);
 }

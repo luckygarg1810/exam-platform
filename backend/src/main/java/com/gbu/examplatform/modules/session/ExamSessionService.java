@@ -11,6 +11,7 @@ import com.gbu.examplatform.modules.exam.Exam;
 import com.gbu.examplatform.modules.notification.EmailService;
 import com.gbu.examplatform.modules.question.Question;
 import com.gbu.examplatform.modules.question.QuestionRepository;
+import com.gbu.examplatform.modules.notification.NotificationService;
 import com.gbu.examplatform.modules.proctoring.ViolationSummary;
 import com.gbu.examplatform.modules.proctoring.ViolationSummaryRepository;
 import com.gbu.examplatform.security.SecurityUtils;
@@ -44,6 +45,7 @@ public class ExamSessionService {
     private final SecurityUtils securityUtils;
     private final RedisTemplate<String, String> redisTemplate;
     private final EmailService emailService;
+    private final NotificationService notificationService;
 
     @Transactional
     public SessionDto startSession(UUID examId, HttpServletRequest request) {
@@ -157,6 +159,13 @@ public class ExamSessionService {
     @Transactional
     public void suspendSession(UUID sessionId, String reason) {
         ExamSession session = findSession(sessionId);
+
+        // Idempotent: if already suspended, just update reason
+        if (Boolean.TRUE.equals(session.getIsSuspended())) {
+            log.debug("Session {} already suspended", sessionId);
+            return;
+        }
+
         session.setIsSuspended(true);
         session.setSuspensionReason(reason);
         sessionRepository.save(session);
@@ -164,6 +173,18 @@ public class ExamSessionService {
         ExamEnrollment enrollment = session.getEnrollment();
         enrollment.setStatus(ExamEnrollment.EnrollmentStatus.FLAGGED);
         enrollmentRepository.save(enrollment);
+
+        // Remove Redis presence key
+        redisTemplate.delete("session:active:" + sessionId);
+
+        // Notify student via WebSocket — locks the exam UI
+        notificationService.sendSuspension(sessionId, reason);
+
+        // Broadcast suspension to proctors
+        notificationService.broadcastProctorAlert(sessionId, "MANUAL_FLAG", "CRITICAL",
+                1.0, "Session suspended: " + reason);
+
+        log.info("Session {} suspended: {}", sessionId, reason);
     }
 
     @Transactional(readOnly = true)

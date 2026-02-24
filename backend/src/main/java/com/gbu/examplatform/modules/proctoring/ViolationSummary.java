@@ -1,10 +1,17 @@
 package com.gbu.examplatform.modules.proctoring;
 
+import com.gbu.examplatform.modules.session.ExamSession;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Matches V8 migration exactly: violations_summary table.
+ * One row per exam session, updated incrementally as proctoring events arrive.
+ */
 @Entity
 @Table(name = "violations_summary")
 @Getter
@@ -19,37 +26,50 @@ public class ViolationSummary {
     private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "session_id", unique = true)
-    private com.gbu.examplatform.modules.session.ExamSession session;
+    @JoinColumn(name = "session_id", unique = true, nullable = false)
+    private ExamSession session;
 
-    @Column(name = "total_violations")
-    @Builder.Default
-    private Integer totalViolations = 0;
-
-    @Column(name = "critical_count")
-    @Builder.Default
-    private Integer criticalCount = 0;
-
-    @Column(name = "high_count")
-    @Builder.Default
-    private Integer highCount = 0;
-
-    @Column(name = "medium_count")
-    @Builder.Default
-    private Integer mediumCount = 0;
-
-    @Column(name = "low_count")
-    @Builder.Default
-    private Integer lowCount = 0;
-
-    @Column(name = "risk_score", columnDefinition = "NUMERIC(6,2)")
+    /** Normalized AI risk score 0.0000 – 0.9999 (updated from AI result) */
+    @Column(name = "risk_score", columnDefinition = "NUMERIC(5,4)")
     @Builder.Default
     private Double riskScore = 0.0;
 
-    @Column(name = "proctor_flagged")
+    @Column(name = "face_away_count")
     @Builder.Default
-    private Boolean proctorFlagged = false;
+    private Integer faceAwayCount = 0;
 
-    @Column(name = "proctor_notes", columnDefinition = "TEXT")
-    private String proctorNotes;
+    @Column(name = "multiple_face_count")
+    @Builder.Default
+    private Integer multipleFaceCount = 0;
+
+    @Column(name = "phone_detected_count")
+    @Builder.Default
+    private Integer phoneDetectedCount = 0;
+
+    @Column(name = "audio_violation_count")
+    @Builder.Default
+    private Integer audioViolationCount = 0;
+
+    @Column(name = "tab_switch_count")
+    @Builder.Default
+    private Integer tabSwitchCount = 0;
+
+    @Column(name = "fullscreen_exit_count")
+    @Builder.Default
+    private Integer fullscreenExitCount = 0;
+
+    @Column(name = "copy_paste_count")
+    @Builder.Default
+    private Integer copyPasteCount = 0;
+
+    @Column(name = "proctor_flag")
+    @Builder.Default
+    private Boolean proctorFlag = false;
+
+    @Column(name = "proctor_note", columnDefinition = "TEXT")
+    private String proctorNote;
+
+    @UpdateTimestamp
+    @Column(name = "last_updated_at")
+    private Instant lastUpdatedAt;
 }
