@@ -37,6 +37,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null && jwtTokenProvider.validateToken(token)) {
             try {
                 Claims claims = jwtTokenProvider.extractAllClaims(token);
+
+                // Reject refresh tokens used as bearer tokens on REST endpoints
+                String tokenType = claims.get("type", String.class);
+                if (!"ACCESS".equals(tokenType)) {
+                    log.debug("Rejected non-ACCESS token on REST request: type={}", tokenType);
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
                 String jti = claims.getId();
 
                 // Check if token is blacklisted (logged out)

@@ -118,9 +118,13 @@ public class AuthService {
         String newAccessToken = jwtTokenProvider.generateAccessToken(
                 user.getId().toString(), user.getEmail(), user.getRole().name());
 
+        // Issue a fresh refresh token and replace the old one in Redis
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId().toString());
+        refreshTokenService.storeRefreshToken(user.getId().toString(), newRefreshToken, refreshTokenExpiryMs);
+
         return TokenResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(newRefreshToken)
                 .tokenType("Bearer")
                 .expiresIn(accessTokenExpiryMs / 1000)
                 .userId(user.getId())

@@ -1,6 +1,7 @@
 package com.gbu.examplatform.config;
 
 import com.gbu.examplatform.modules.auth.RefreshTokenService;
+import com.gbu.examplatform.modules.session.ExamSessionRepository;
 import com.gbu.examplatform.security.AuthenticatedUser;
 import com.gbu.examplatform.security.JwtTokenProvider;
 import io.jsonwebtoken.Claims;
@@ -18,32 +19,47 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Validates JWT tokens on STOMP CONNECT frames.
- * The token should be sent in the STOMP Authorization header:
- * CONNECT
+ * Validates JWT tokens on STOMP CONNECT frames and enforces ownership/role
+ * rules on SUBSCRIBE frames.
+ *
+ * CONNECT: The token should be sent in the STOMP Authorization header:
  * Authorization: Bearer <access_token>
  *
- * On success, sets a UsernamePasswordAuthenticationToken as the WebSocket
- * session principal so security context is available in @MessageMapping
- * methods.
+ * SUBSCRIBE rules:
+ * /queue/exam/{sessionId}/** — only the session's enrolled student
+ * /topic/proctor/** — only PROCTOR or ADMIN
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketChannelInterceptor implements ChannelInterceptor {
 
+    private static final Pattern SESSION_DEST = Pattern.compile("^/queue/exam/([^/]+)/");
+
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final ExamSessionRepository sessionRepository;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        if (accessor == null)
+            return message;
 
-        if (accessor == null || !StompCommand.CONNECT.equals(accessor.getCommand())) {
-            return message; // Only process CONNECT frames
+        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+            handleConnect(accessor);
+        } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            handleSubscribe(accessor);
         }
+        return message;
+    }
+
+    private void handleConnect(StompHeaderAccessor accessor) {
 
         String token = extractToken(accessor);
         if (token == null) {
@@ -58,8 +74,15 @@ public class WebSocketChannelInterceptor implements ChannelInterceptor {
 
         try {
             Claims claims = jwtTokenProvider.extractAllClaims(token);
-            String jti = claims.getId();
 
+            // Only ACCESS tokens are permitted on the WebSocket connection
+            String tokenType = claims.get("type", String.class);
+            if (!"ACCESS".equals(tokenType)) {
+                log.warn("WebSocket CONNECT rejected: non-ACCESS token type={}", tokenType);
+                throw new IllegalArgumentException("Only access tokens may be used for WebSocket connections");
+            }
+
+            String jti = claims.getId();
             if (refreshTokenService.isTokenBlacklisted(jti)) {
                 log.warn("WebSocket CONNECT rejected: blacklisted JWT");
                 throw new IllegalArgumentException("JWT token has been revoked");
@@ -78,13 +101,68 @@ public class WebSocketChannelInterceptor implements ChannelInterceptor {
             log.debug("WebSocket CONNECT authenticated: userId={} role={}", userId, role);
 
         } catch (IllegalArgumentException e) {
-            throw e; // re-throw auth errors
+            throw e;
         } catch (Exception e) {
             log.error("WebSocket authentication error: {}", e.getMessage());
             throw new IllegalArgumentException("Authentication failed: " + e.getMessage());
         }
+    }
 
-        return message;
+    private void handleSubscribe(StompHeaderAccessor accessor) {
+        String destination = accessor.getDestination();
+        if (destination == null)
+            return;
+
+        AuthenticatedUser principal = extractPrincipal(accessor);
+        if (principal == null) {
+            log.warn("SUBSCRIBE rejected: no authenticated principal for destination {}", destination);
+            throw new IllegalArgumentException("Not authenticated");
+        }
+
+        // /queue/exam/{sessionId}/warning|suspend — only the session's own student
+        Matcher m = SESSION_DEST.matcher(destination);
+        if (m.find()) {
+            String sessionIdStr = m.group(1);
+            try {
+                UUID sessionId = UUID.fromString(sessionIdStr);
+                String role = principal.getRole();
+                // Proctors and admins may subscribe to monitor any session
+                if ("PROCTOR".equals(role) || "ADMIN".equals(role))
+                    return;
+
+                // Students must own the session
+                UUID ownerId = sessionRepository.findById(sessionId)
+                        .map(s -> s.getEnrollment().getUser().getId())
+                        .orElse(null);
+                if (ownerId == null || !ownerId.toString().equals(principal.getId())) {
+                    log.warn("SUBSCRIBE rejected: user {} does not own session {}", principal.getId(), sessionId);
+                    throw new IllegalArgumentException("You are not authorised to subscribe to this session");
+                }
+            } catch (IllegalArgumentException e) {
+                throw e;
+            } catch (Exception e) {
+                log.error("SUBSCRIBE ownership check error: {}", e.getMessage());
+                throw new IllegalArgumentException("Subscription authorization failed");
+            }
+            return;
+        }
+
+        // /topic/proctor/** — PROCTOR or ADMIN only
+        if (destination.startsWith("/topic/proctor/")) {
+            String role = principal.getRole();
+            if (!"PROCTOR".equals(role) && !"ADMIN".equals(role)) {
+                log.warn("SUBSCRIBE rejected: role {} cannot subscribe to {}", role, destination);
+                throw new IllegalArgumentException("Only proctors and admins may subscribe to proctor topics");
+            }
+        }
+    }
+
+    private AuthenticatedUser extractPrincipal(StompHeaderAccessor accessor) {
+        if (accessor.getUser() instanceof UsernamePasswordAuthenticationToken auth
+                && auth.getPrincipal() instanceof AuthenticatedUser user) {
+            return user;
+        }
+        return null;
     }
 
     private String extractToken(StompHeaderAccessor accessor) {
