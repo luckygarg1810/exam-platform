@@ -15,7 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -64,13 +63,16 @@ public class ReportController {
     @GetMapping("/students/{userId}/history")
     @PreAuthorize("hasAnyRole('ADMIN','PROCTOR','STUDENT')")
     @Operation(summary = "Exam history for a student. Students can only view their own history.")
-    public ResponseEntity<List<ReportService.SessionResultDto>> getStudentHistory(
-            @PathVariable UUID userId) {
+    public ResponseEntity<Page<ReportService.SessionResultDto>> getStudentHistory(
+            @PathVariable UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         // Students may only access their own history; admins and proctors can access
         // any student's
         if (securityUtils.isStudent() && !securityUtils.getCurrentUserId().equals(userId)) {
             throw new UnauthorizedAccessException("You can only view your own exam history");
         }
-        return ResponseEntity.ok(reportService.getStudentHistory(userId));
+        Pageable pageable = PageRequest.of(page, size, Sort.by("startedAt").descending());
+        return ResponseEntity.ok(reportService.getStudentHistory(userId, pageable));
     }
 }

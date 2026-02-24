@@ -9,12 +9,14 @@ import com.gbu.examplatform.security.SecurityUtils;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,9 +46,16 @@ public class ExamWebSocketController {
     private final BehaviorEventRepository behaviorEventRepository;
     private final NotificationService notificationService;
     private final SecurityUtils securityUtils;
+    private final StringRedisTemplate stringRedisTemplate;
 
     // Tab-switch threshold for immediate warning
     private static final int TAB_SWITCH_WARN_THRESHOLD = 3;
+
+    // Rate limits per session per second for each handler type
+    private static final int RATE_FRAME = 2;
+    private static final int RATE_AUDIO = 1;
+    private static final int RATE_EVENT = 10;
+    private static final int RATE_HEARTBEAT = 1;
 
     /**
      * Receives a Base64-encoded JPEG frame from the student's webcam.
@@ -55,6 +64,10 @@ public class ExamWebSocketController {
     @MessageMapping("/exam/{sessionId}/frame")
     public void handleFrame(@DestinationVariable UUID sessionId,
             @Payload Map<String, Object> payload) {
+        if (isRateLimited(sessionId, "frame", RATE_FRAME)) {
+            log.debug("Rate limit exceeded for frame on session {}", sessionId);
+            return;
+        }
         ExamSession session = validateSession(sessionId);
         if (session == null)
             return;
@@ -78,6 +91,10 @@ public class ExamWebSocketController {
     @MessageMapping("/exam/{sessionId}/audio")
     public void handleAudio(@DestinationVariable UUID sessionId,
             @Payload Map<String, Object> payload) {
+        if (isRateLimited(sessionId, "audio", RATE_AUDIO)) {
+            log.debug("Rate limit exceeded for audio on session {}", sessionId);
+            return;
+        }
         ExamSession session = validateSession(sessionId);
         if (session == null)
             return;
@@ -103,11 +120,20 @@ public class ExamWebSocketController {
     @Transactional
     public void handleBehaviorEvent(@DestinationVariable UUID sessionId,
             @Payload Map<String, Object> payload) {
+        if (isRateLimited(sessionId, "event", RATE_EVENT)) {
+            log.debug("Rate limit exceeded for event on session {}", sessionId);
+            return;
+        }
         ExamSession session = validateSession(sessionId);
         if (session == null)
             return;
 
         String eventType = String.valueOf(payload.getOrDefault("type", "UNKNOWN"));
+        // Normalize browser copy/paste event names to the canonical enum name so the
+        // ViolationSummary counter is incremented correctly (Issue 35).
+        if ("COPY_ATTEMPT".equalsIgnoreCase(eventType) || "PASTE_ATTEMPT".equalsIgnoreCase(eventType)) {
+            eventType = "COPY_PASTE";
+        }
         Object tsObj = payload.getOrDefault("timestamp", System.currentTimeMillis());
         long tsMillis;
         if (tsObj instanceof Number) {
@@ -151,6 +177,10 @@ public class ExamWebSocketController {
      */
     @MessageMapping("/exam/{sessionId}/heartbeat")
     public void handleHeartbeat(@DestinationVariable UUID sessionId) {
+        if (isRateLimited(sessionId, "heartbeat", RATE_HEARTBEAT)) {
+            log.debug("Rate limit exceeded for heartbeat on session {}", sessionId);
+            return;
+        }
         // Delegate entirely to the service layer — avoids duplicating the DB +
         // Redis logic that already lives in ExamSessionService.heartbeat() (Issue 15).
         if (validateSession(sessionId) == null)
@@ -199,6 +229,20 @@ public class ExamWebSocketController {
      * Applies quick rule-based warnings without waiting for AI.
      * Called synchronously so warnings are immediate.
      */
+    /**
+     * Sliding-window rate limiter using Redis INCR + EXPIRE.
+     * Returns true if the request should be dropped (limit exceeded).
+     */
+    private boolean isRateLimited(UUID sessionId, String handler, int limitPerSecond) {
+        String key = "ws:rl:" + sessionId + ":" + handler;
+        Long count = stringRedisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1) {
+            // First call in this window — set a 1-second TTL
+            stringRedisTemplate.expire(key, Duration.ofSeconds(1));
+        }
+        return count != null && count > limitPerSecond;
+    }
+
     private void applyQuickRules(UUID sessionId, String eventType) {
         if ("TAB_SWITCH".equalsIgnoreCase(eventType) || "FOCUS_LOST".equalsIgnoreCase(eventType)) {
             long tabSwitchCount = behaviorEventRepository
@@ -217,7 +261,7 @@ public class ExamWebSocketController {
                     "Warning: You exited fullscreen mode. Please switch back immediately.");
         }
 
-        if ("COPY_ATTEMPT".equalsIgnoreCase(eventType) || "PASTE_ATTEMPT".equalsIgnoreCase(eventType)) {
+        if ("COPY_PASTE".equalsIgnoreCase(eventType)) {
             notificationService.sendWarning(sessionId,
                     "Warning: Copy/paste detected. This action has been recorded.");
         }

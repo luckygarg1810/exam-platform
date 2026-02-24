@@ -68,8 +68,24 @@ public class UserService {
         }
 
         if (isIdPhoto) {
+            String oldKey = user.getIdPhotoPath();
+            if (oldKey != null) {
+                try {
+                    storageService.deleteFile(profilePhotosBucket, oldKey);
+                } catch (Exception e) {
+                    log.warn("Failed to delete old ID photo '{}': {}", oldKey, e.getMessage());
+                }
+            }
             user.setIdPhotoPath(objectKey);
         } else {
+            String oldKey = user.getProfilePhotoPath();
+            if (oldKey != null) {
+                try {
+                    storageService.deleteFile(profilePhotosBucket, oldKey);
+                } catch (Exception e) {
+                    log.warn("Failed to delete old profile photo '{}': {}", oldKey, e.getMessage());
+                }
+            }
             user.setProfilePhotoPath(objectKey);
         }
         userRepository.save(user);

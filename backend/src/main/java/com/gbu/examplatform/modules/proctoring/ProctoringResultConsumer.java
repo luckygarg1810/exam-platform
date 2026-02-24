@@ -123,8 +123,11 @@ public class ProctoringResultConsumer {
 
         updateCounters(summary, eventType);
         if (riskScore != null) {
-            // Use the AI's computed risk score (max of current and new, so it only goes up)
-            summary.setRiskScore(Math.max(summary.getRiskScore(), riskScore));
+            // Use the AI's computed risk score (max of current and new, so it only goes
+            // up).
+            // Clamp to 1.0 to guard against malformed AI output (Issue 34).
+            double clamped = Math.min(1.0, riskScore);
+            summary.setRiskScore(Math.max(summary.getRiskScore(), clamped));
         }
         violationSummaryRepository.save(summary);
 

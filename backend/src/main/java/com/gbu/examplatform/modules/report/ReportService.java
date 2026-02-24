@@ -119,12 +119,10 @@ public class ReportService {
     // -----------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public List<SessionResultDto> getStudentHistory(UUID userId) {
-        List<ExamSession> sessions = sessionRepository.findByUserId(userId);
-        Map<UUID, ViolationSummary> vsMap = buildVsMap(sessions);
-        return sessions.stream()
-                .map(s -> toResultDto(s, vsMap.get(s.getId())))
-                .collect(Collectors.toList());
+    public Page<SessionResultDto> getStudentHistory(UUID userId, Pageable pageable) {
+        Page<ExamSession> page = sessionRepository.findPageByUserId(userId, pageable);
+        Map<UUID, ViolationSummary> vsMap = buildVsMap(page.getContent());
+        return page.map(s -> toResultDto(s, vsMap.get(s.getId())));
     }
 
     // -----------------------------------------------------------------------

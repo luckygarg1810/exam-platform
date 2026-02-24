@@ -61,6 +61,10 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, UUID> 
         @Query("SELECT s FROM ExamSession s WHERE s.enrollment.user.id = :userId ORDER BY s.startedAt DESC")
         List<ExamSession> findByUserId(@Param("userId") UUID userId);
 
+        // Paginated sessions for a specific student (paginated history - Issue 28)
+        @Query("SELECT s FROM ExamSession s WHERE s.enrollment.user.id = :userId ORDER BY s.startedAt DESC")
+        Page<ExamSession> findPageByUserId(@Param("userId") UUID userId, Pageable pageable);
+
         // Ownership check: used by WebSocket handlers to verify a student owns a
         // session
         @Query("SELECT COUNT(s) FROM ExamSession s WHERE s.id = :id AND s.enrollment.user.id = :userId")

@@ -4,6 +4,7 @@ import com.gbu.examplatform.exception.BusinessException;
 import com.gbu.examplatform.exception.ResourceNotFoundException;
 import com.gbu.examplatform.modules.exam.Exam;
 import com.gbu.examplatform.modules.exam.ExamRepository;
+import com.gbu.examplatform.modules.session.ExamSessionRepository;
 import com.gbu.examplatform.modules.user.User;
 import com.gbu.examplatform.modules.user.UserRepository;
 import com.gbu.examplatform.security.SecurityUtils;
@@ -28,6 +29,7 @@ public class EnrollmentService {
     private final EnrollmentRepository enrollmentRepository;
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
+    private final ExamSessionRepository sessionRepository;
     private final SecurityUtils securityUtils;
 
     @Transactional
@@ -63,6 +65,31 @@ public class EnrollmentService {
                 .build();
 
         return toDto(enrollmentRepository.save(enrollment));
+    }
+
+    @Transactional
+    public void unenroll(UUID examId) {
+        UUID userId = securityUtils.getCurrentUserId();
+
+        ExamEnrollment enrollment = enrollmentRepository.findByExamIdAndUserId(examId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment",
+                        "examId=" + examId + ", userId=" + userId));
+
+        Exam.ExamStatus status = enrollment.getExam().getStatus();
+        if (status == Exam.ExamStatus.ONGOING) {
+            throw new BusinessException("Cannot unenroll from an ongoing exam");
+        }
+        if (status == Exam.ExamStatus.COMPLETED) {
+            throw new BusinessException("Cannot unenroll from a completed exam");
+        }
+
+        // Block if the student has already started a session for this enrollment
+        if (sessionRepository.findByEnrollmentId(enrollment.getId()).isPresent()) {
+            throw new BusinessException("Cannot unenroll after a session has been started");
+        }
+
+        enrollmentRepository.delete(enrollment);
+        log.info("User {} unenrolled from exam {}", userId, examId);
     }
 
     @Transactional(readOnly = true)

@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -25,6 +24,14 @@ public class EnrollmentController {
     @Operation(summary = "Enroll student in exam")
     public ResponseEntity<EnrollmentService.EnrollmentDto> enroll(@PathVariable UUID examId) {
         return ResponseEntity.status(HttpStatus.CREATED).body(enrollmentService.enroll(examId));
+    }
+
+    @DeleteMapping("/{examId}/enroll")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Unenroll from an exam (only before it starts or if no session begun)")
+    public ResponseEntity<Void> unenroll(@PathVariable UUID examId) {
+        enrollmentService.unenroll(examId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{examId}/enrollments")

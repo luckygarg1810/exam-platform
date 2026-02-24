@@ -21,6 +21,7 @@ public class ProctoringController {
 
     private final ProctoringService proctoringService;
     private final ExamSessionService sessionService;
+    private final BehaviorEventRepository behaviorEventRepository;
 
     @GetMapping("/sessions/{sessionId}/events")
     @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
@@ -77,6 +78,17 @@ public class ProctoringController {
         sessionService.suspendSession(sessionId,
                 body.getOrDefault("reason", "Manually suspended by proctor"));
         return ResponseEntity.ok(sessionService.getSession(sessionId));
+    }
+
+    @GetMapping("/sessions/{sessionId}/behavior-events")
+    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @Operation(summary = "Paginated browser-behavior event feed for a session")
+    public ResponseEntity<Page<BehaviorEvent>> getBehaviorEvents(
+            @PathVariable UUID sessionId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
+        return ResponseEntity.ok(behaviorEventRepository.findBySessionId(sessionId, pageable));
     }
 
     @Data
