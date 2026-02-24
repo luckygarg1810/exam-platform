@@ -1,0 +1,40 @@
+package com.gbu.examplatform.modules.exam;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface ExamRepository extends JpaRepository<Exam, UUID> {
+
+    Page<Exam> findByIsDeletedFalse(Pageable pageable);
+
+    Page<Exam> findByStatusInAndIsDeletedFalse(List<Exam.ExamStatus> statuses, Pageable pageable);
+
+    List<Exam> findByStatusAndStartTimeBeforeAndIsDeletedFalse(Exam.ExamStatus status, Instant time);
+
+    List<Exam> findByStatusAndEndTimeBeforeAndIsDeletedFalse(Exam.ExamStatus status, Instant time);
+
+    @Query("SELECT e FROM Exam e WHERE e.isDeleted = false AND e.status IN :statuses " +
+            "AND e.id IN (SELECT en.exam.id FROM ExamEnrollment en WHERE en.user.id = :userId)")
+    Page<Exam> findByEnrolledUserAndStatuses(@Param("userId") UUID userId,
+            @Param("statuses") List<Exam.ExamStatus> statuses,
+            Pageable pageable);
+
+    @Modifying
+    @Query("UPDATE Exam e SET e.status = :newStatus WHERE e.status = :oldStatus AND e.startTime < :now AND e.isDeleted = false")
+    int transitionStatus(@Param("oldStatus") Exam.ExamStatus oldStatus,
+            @Param("newStatus") Exam.ExamStatus newStatus,
+            @Param("now") Instant now);
+
+    @Query("SELECT COUNT(q) FROM Question q WHERE q.exam.id = :examId")
+    long countQuestions(@Param("examId") UUID examId);
+}
