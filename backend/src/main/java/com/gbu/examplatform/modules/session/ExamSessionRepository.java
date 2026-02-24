@@ -26,6 +26,12 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, UUID> 
                         "AND s.submittedAt IS NULL AND s.isSuspended = false")
         List<ExamSession> findActiveSessionsByUser(@Param("userId") UUID userId);
 
+        // Any session (active or suspended) for a user in a specific exam
+        @Query("SELECT s FROM ExamSession s WHERE s.enrollment.user.id = :userId " +
+                        "AND s.enrollment.exam.id = :examId AND s.submittedAt IS NULL")
+        Optional<ExamSession> findAnyOpenSessionByUserAndExam(@Param("userId") UUID userId,
+                        @Param("examId") UUID examId);
+
         Optional<ExamSession> findByEnrollmentId(UUID enrollmentId);
 
         // Find sessions with stale heartbeat for auto-submission

@@ -114,6 +114,10 @@ public class QuestionService {
             throw new BusinessException("Question does not belong to this exam");
         }
 
+        if (exam.getStatus() == Exam.ExamStatus.PUBLISHED || exam.getStatus() == Exam.ExamStatus.ONGOING) {
+            throw new BusinessException("Questions cannot be modified once an exam is PUBLISHED or ONGOING");
+        }
+
         if (request.getText() != null)
             question.setText(request.getText());
         if (request.getOptions() != null)
@@ -132,11 +136,16 @@ public class QuestionService {
 
     @Transactional
     public void deleteQuestion(UUID examId, UUID questionId) {
+        Exam exam = findExam(examId);
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", questionId.toString()));
 
         if (!question.getExam().getId().equals(examId)) {
             throw new BusinessException("Question does not belong to this exam");
+        }
+
+        if (exam.getStatus() == Exam.ExamStatus.PUBLISHED || exam.getStatus() == Exam.ExamStatus.ONGOING) {
+            throw new BusinessException("Questions cannot be deleted once an exam is PUBLISHED or ONGOING");
         }
 
         questionRepository.delete(question);

@@ -116,6 +116,14 @@ public class ExamService {
         if (request.getAllowLateEntry() != null)
             exam.setAllowLateEntry(request.getAllowLateEntry());
 
+        // Re-validate time relationship after partial update
+        if (!exam.getEndTime().isAfter(exam.getStartTime())) {
+            throw new BusinessException("End time must be after start time");
+        }
+        if (exam.getPassingMarks() > exam.getTotalMarks()) {
+            throw new BusinessException("Passing marks cannot exceed total marks");
+        }
+
         return toDto(examRepository.save(exam));
     }
 

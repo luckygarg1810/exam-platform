@@ -62,7 +62,20 @@ public class ExamSessionService {
             throw new BusinessException("Exam has ended");
         }
 
-        // Check for existing active session
+        // Block suspended students — suspension is permanent for this exam attempt
+        if (enrollment.getStatus() == ExamEnrollment.EnrollmentStatus.FLAGGED) {
+            throw new BusinessException("Your session was suspended. You cannot restart this exam.");
+        }
+
+        // Block if any open session (active or suspended) already exists for this exam
+        sessionRepository.findAnyOpenSessionByUserAndExam(userId, examId).ifPresent(existing -> {
+            if (Boolean.TRUE.equals(existing.getIsSuspended())) {
+                throw new BusinessException("Your session was suspended. You cannot restart this exam.");
+            }
+            throw new SessionAlreadyActiveException("You already have an active session for this exam");
+        });
+
+        // Block concurrent sessions across other exams
         List<ExamSession> activeSessions = sessionRepository.findActiveSessionsByUser(userId);
         if (!activeSessions.isEmpty()) {
             throw new SessionAlreadyActiveException("You already have an active exam session");
@@ -121,6 +134,10 @@ public class ExamSessionService {
 
         if (session.getSubmittedAt() != null) {
             throw new BusinessException("Session already submitted");
+        }
+
+        if (Boolean.TRUE.equals(session.getIsSuspended())) {
+            throw new BusinessException("Session has been suspended and cannot be submitted");
         }
 
         // Auto-grade MCQs
