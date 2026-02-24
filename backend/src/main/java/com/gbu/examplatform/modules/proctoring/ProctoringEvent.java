@@ -36,7 +36,7 @@ public class ProctoringEvent {
     @Builder.Default
     private Severity severity = Severity.MEDIUM;
 
-    @Column(precision = 4, scale = 3)
+    @Column
     private Double confidence;
 
     @Column(columnDefinition = "TEXT")

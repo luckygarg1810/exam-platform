@@ -29,8 +29,8 @@ public class ViolationSummary {
     @JoinColumn(name = "session_id", unique = true, nullable = false)
     private ExamSession session;
 
-    /** Normalized AI risk score 0.0000 – 0.9999 (updated from AI result) */
-    @Column(name = "risk_score", columnDefinition = "NUMERIC(5,4)")
+    /** Normalized AI risk score 0.0 – 1.0 (updated from AI result) */
+    @Column(name = "risk_score")
     @Builder.Default
     private Double riskScore = 0.0;
 
