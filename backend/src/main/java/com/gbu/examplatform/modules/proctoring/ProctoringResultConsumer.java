@@ -175,8 +175,15 @@ public class ProctoringResultConsumer {
                 summary.setFullscreenExitCount(summary.getFullscreenExitCount() + 1);
             case COPY_PASTE ->
                 summary.setCopyPasteCount(summary.getCopyPasteCount() + 1);
+            // Previously fell through to default and were silently ignored (Issue 25)
+            case NOTES_DETECTED ->
+                summary.setNotesDetectedCount(summary.getNotesDetectedCount() + 1);
+            case IDENTITY_MISMATCH ->
+                summary.setIdentityMismatchCount(summary.getIdentityMismatchCount() + 1);
+            case MANUAL_FLAG ->
+                summary.setManualFlagCount(summary.getManualFlagCount() + 1);
             default -> {
-                /* no counter for MANUAL_FLAG, IDENTITY_MISMATCH, NOTES_DETECTED */ }
+                /* no counter for unrecognised types */ }
         }
     }
 

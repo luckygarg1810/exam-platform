@@ -158,6 +158,15 @@ public class ExamSessionService {
         // Remove from Redis
         redisTemplate.delete("session:active:" + session.getId());
 
+        // Push per-session live update so monitoring proctors see submission
+        // immediately (Issue 24)
+        notificationService.sendSessionUpdate(sessionId, java.util.Map.of(
+                "type", "SESSION_SUBMITTED",
+                "sessionId", sessionId.toString(),
+                "score", totalScore.toPlainString(),
+                "passed", passed,
+                "timestamp", Instant.now().toString()));
+
         // Send result email asynchronously
         try {
             emailService.sendResultEmail(
@@ -200,6 +209,14 @@ public class ExamSessionService {
         // Broadcast suspension to proctors
         notificationService.broadcastProctorAlert(sessionId, "MANUAL_FLAG", "CRITICAL",
                 1.0, "Session suspended: " + reason);
+
+        // Push per-session live update so monitoring proctors react immediately (Issue
+        // 24)
+        notificationService.sendSessionUpdate(sessionId, java.util.Map.of(
+                "type", "SESSION_SUSPENDED",
+                "sessionId", sessionId.toString(),
+                "reason", reason,
+                "timestamp", Instant.now().toString()));
 
         log.info("Session {} suspended: {}", sessionId, reason);
     }
@@ -252,6 +269,77 @@ public class ExamSessionService {
     private ExamSession findSession(UUID sessionId) {
         return sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session", sessionId.toString()));
+    }
+
+    /**
+     * Manually awards marks for a SHORT_ANSWER question after proctor review.
+     * Recalculates and persists the session total score. (Issue 23)
+     */
+    @Transactional
+    public GradeResultDto gradeShortAnswer(UUID sessionId, UUID questionId,
+            BigDecimal marksAwarded, String comment) {
+        ExamSession session = findSession(sessionId);
+
+        if (session.getSubmittedAt() == null) {
+            throw new BusinessException("Cannot grade a session that has not been submitted yet");
+        }
+
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Question", questionId.toString()));
+
+        if (question.getType() != Question.QuestionType.SHORT_ANSWER) {
+            throw new BusinessException("Manual grading is only allowed for SHORT_ANSWER questions");
+        }
+
+        double maxMarks = question.getMarks();
+        if (marksAwarded.compareTo(BigDecimal.ZERO) < 0
+                || marksAwarded.compareTo(BigDecimal.valueOf(maxMarks)) > 0) {
+            throw new BusinessException(
+                    "Marks awarded must be between 0 and " + maxMarks);
+        }
+
+        Answer answer = answerRepository.findBySessionIdAndQuestionId(sessionId, questionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Answer",
+                        "session=" + sessionId + "/question=" + questionId));
+
+        answer.setMarksAwarded(marksAwarded.setScale(1, java.math.RoundingMode.HALF_UP));
+        answerRepository.save(answer);
+
+        // Recalculate total score from all answers
+        List<Answer> allAnswers = answerRepository.findBySessionId(sessionId);
+        BigDecimal total = allAnswers.stream()
+                .filter(a -> a.getMarksAwarded() != null)
+                .map(Answer::getMarksAwarded)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .max(BigDecimal.ZERO)
+                .setScale(2, java.math.RoundingMode.HALF_UP);
+
+        Exam exam = session.getEnrollment().getExam();
+        boolean passed = total.compareTo(BigDecimal.valueOf(exam.getPassingMarks())) >= 0;
+        session.setScore(total);
+        session.setIsPassed(passed);
+        sessionRepository.save(session);
+
+        log.info("Short answer graded: session={} question={} marks={} comment={}",
+                sessionId, questionId, marksAwarded, comment);
+
+        return GradeResultDto.builder()
+                .sessionId(sessionId)
+                .questionId(questionId)
+                .marksAwarded(answer.getMarksAwarded())
+                .newTotalScore(total)
+                .isPassed(passed)
+                .build();
+    }
+
+    @Data
+    @Builder
+    public static class GradeResultDto {
+        private UUID sessionId;
+        private UUID questionId;
+        private BigDecimal marksAwarded;
+        private BigDecimal newTotalScore;
+        private Boolean isPassed;
     }
 
     public SessionDto toDto(ExamSession s) {

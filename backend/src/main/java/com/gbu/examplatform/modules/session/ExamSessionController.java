@@ -3,6 +3,7 @@ package com.gbu.examplatform.modules.session;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -60,5 +62,23 @@ public class ExamSessionController {
             @RequestParam(defaultValue = "50") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("startedAt").descending());
         return ResponseEntity.ok(sessionService.getActiveSessions(pageable));
+    }
+
+    @PostMapping("/{sessionId}/grade")
+    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @Operation(summary = "Manually grade a short-answer question for a submitted session")
+    public ResponseEntity<ExamSessionService.GradeResultDto> gradeShortAnswer(
+            @PathVariable UUID sessionId,
+            @RequestBody GradeRequest body) {
+        return ResponseEntity.ok(
+                sessionService.gradeShortAnswer(sessionId, body.getQuestionId(),
+                        body.getMarksAwarded(), body.getComment()));
+    }
+
+    @Data
+    static class GradeRequest {
+        private UUID questionId;
+        private BigDecimal marksAwarded;
+        private String comment;
     }
 }

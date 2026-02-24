@@ -71,8 +71,11 @@ public class NotificationService {
     /**
      * Sends a per-session live update to proctors monitoring a specific session.
      * Proctors subscribe to: /topic/proctor/session/{sessionId}
+     * Called on significant session state changes: submission, suspension (Issue
+     * 24).
      */
     public void sendSessionUpdate(UUID sessionId, Map<String, Object> update) {
         messagingTemplate.convertAndSend("/topic/proctor/session/" + sessionId, update);
+        log.debug("Session update pushed to proctor channel for session {}", sessionId);
     }
 }

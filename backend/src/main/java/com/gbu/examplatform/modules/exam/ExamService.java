@@ -2,7 +2,6 @@ package com.gbu.examplatform.modules.exam;
 
 import com.gbu.examplatform.exception.BusinessException;
 import com.gbu.examplatform.exception.ResourceNotFoundException;
-import com.gbu.examplatform.exception.UnauthorizedAccessException;
 import com.gbu.examplatform.modules.exam.dto.*;
 import com.gbu.examplatform.modules.user.User;
 import com.gbu.examplatform.modules.user.UserRepository;
@@ -165,6 +164,39 @@ public class ExamService {
             throw new ResourceNotFoundException("Exam", examId.toString());
         }
         return exam;
+    }
+
+    // -------------------------------------------------------------------------
+    // Scheduler-facing helpers (Issue 21)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Transitions a batch of exams to ONGOING in a dedicated @Transactional call.
+     * Called by ExamScheduler so the status commit is isolated — a subsequent
+     * failure
+     * in session-submission logic can never roll it back.
+     */
+    @Transactional
+    public List<Exam> markExamsOngoing(List<Exam> exams) {
+        exams.forEach(e -> e.setStatus(Exam.ExamStatus.ONGOING));
+        List<Exam> saved = examRepository.saveAll(exams);
+        log.info("Scheduler: transitioned {} exam(s) to ONGOING", saved.size());
+        return saved;
+    }
+
+    /**
+     * Transitions a batch of exams to COMPLETED in a dedicated @Transactional call.
+     * Commits before the caller begins per-session submission work, ensuring the
+     * exam
+     * is permanently marked complete even if all session submissions subsequently
+     * fail.
+     */
+    @Transactional
+    public List<Exam> markExamsCompleted(List<Exam> exams) {
+        exams.forEach(e -> e.setStatus(Exam.ExamStatus.COMPLETED));
+        List<Exam> saved = examRepository.saveAll(exams);
+        log.info("Scheduler: transitioned {} exam(s) to COMPLETED", saved.size());
+        return saved;
     }
 
     public ExamDto toDto(Exam exam) {

@@ -1,10 +1,6 @@
 package com.gbu.examplatform.scheduler;
 
 import com.gbu.examplatform.modules.storage.StorageService;
-import io.minio.ListObjectsArgs;
-import io.minio.MinioClient;
-import io.minio.Result;
-import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,7 +21,6 @@ import java.time.ZonedDateTime;
 @RequiredArgsConstructor
 public class CleanupScheduler {
 
-    private final MinioClient minioClient;
     private final StorageService storageService;
 
     @Value("${minio.buckets.violation-snapshots:violation-snapshots}")
@@ -56,24 +51,14 @@ public class CleanupScheduler {
         ZonedDateTime cutoff = ZonedDateTime.now().minusDays(olderThanDays);
         int count = 0;
 
-        try {
-            Iterable<Result<Item>> results = minioClient.listObjects(
-                    ListObjectsArgs.builder().bucket(bucket).recursive(true).build());
-
-            for (Result<Item> result : results) {
-                try {
-                    Item item = result.get();
-                    if (item.lastModified() != null && item.lastModified().isBefore(cutoff)) {
-                        storageService.deleteFile(bucket, item.objectName());
-                        count++;
-                        log.debug("Deleted old object: {}/{}", bucket, item.objectName());
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to process/delete object in {}: {}", bucket, e.getMessage());
-                }
+        for (String key : storageService.listObjectKeysOlderThan(bucket, cutoff)) {
+            try {
+                storageService.deleteFile(bucket, key);
+                count++;
+                log.debug("Deleted old object: {}/{}", bucket, key);
+            } catch (Exception e) {
+                log.warn("Failed to delete object {}/{}: {}", bucket, key, e.getMessage());
             }
-        } catch (Exception e) {
-            log.error("Error listing objects in bucket {}: {}", bucket, e.getMessage());
         }
 
         return count;

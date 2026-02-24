@@ -62,6 +62,21 @@ public class ViolationSummary {
     @Builder.Default
     private Integer copyPasteCount = 0;
 
+    /**
+     * Counters for violation types that previously had no summary column (Issue 25)
+     */
+    @Column(name = "notes_detected_count")
+    @Builder.Default
+    private Integer notesDetectedCount = 0;
+
+    @Column(name = "identity_mismatch_count")
+    @Builder.Default
+    private Integer identityMismatchCount = 0;
+
+    @Column(name = "manual_flag_count")
+    @Builder.Default
+    private Integer manualFlagCount = 0;
+
     @Column(name = "proctor_flag")
     @Builder.Default
     private Boolean proctorFlag = false;

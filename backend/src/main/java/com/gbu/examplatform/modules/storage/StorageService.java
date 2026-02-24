@@ -2,11 +2,15 @@ package com.gbu.examplatform.modules.storage;
 
 import io.minio.*;
 import io.minio.http.Method;
+import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -80,5 +84,31 @@ public class StorageService {
         } catch (Exception e) {
             log.warn("Failed to delete MinIO object {}/{}: {}", bucket, objectKey, e.getMessage());
         }
+    }
+
+    /**
+     * Returns object keys in the given bucket whose last-modified timestamp is
+     * strictly before {@code cutoff}. Encapsulates the MinIO listing API so callers
+     * have no reason to import the MinIO SDK directly (Issue 20).
+     */
+    public List<String> listObjectKeysOlderThan(String bucket, ZonedDateTime cutoff) {
+        List<String> keys = new ArrayList<>();
+        try {
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder().bucket(bucket).recursive(true).build());
+            for (Result<Item> result : results) {
+                try {
+                    Item item = result.get();
+                    if (item.lastModified() != null && item.lastModified().isBefore(cutoff)) {
+                        keys.add(item.objectName());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to read object metadata in bucket {}: {}", bucket, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error listing objects in bucket {}: {}", bucket, e.getMessage());
+        }
+        return keys;
     }
 }

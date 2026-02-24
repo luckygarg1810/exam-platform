@@ -2,6 +2,7 @@ package com.gbu.examplatform.scheduler;
 
 import com.gbu.examplatform.modules.exam.Exam;
 import com.gbu.examplatform.modules.exam.ExamRepository;
+import com.gbu.examplatform.modules.exam.ExamService;
 import com.gbu.examplatform.modules.session.ExamSession;
 import com.gbu.examplatform.modules.session.ExamSessionRepository;
 import com.gbu.examplatform.modules.session.ExamSessionService;
@@ -9,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -22,6 +22,7 @@ public class ExamScheduler {
     private final ExamRepository examRepository;
     private final ExamSessionRepository sessionRepository;
     private final ExamSessionService sessionService;
+    private final ExamService examService;
 
     /**
      * Every minute at :00 — PUBLISHED → ONGOING when start_time passes.
@@ -36,9 +37,9 @@ public class ExamScheduler {
                 Exam.ExamStatus.PUBLISHED, now);
 
         if (!toStart.isEmpty()) {
-            toStart.forEach(e -> e.setStatus(Exam.ExamStatus.ONGOING));
-            examRepository.saveAll(toStart);
-            log.info("Transitioned {} exam(s) to ONGOING", toStart.size());
+            // Exam status update commits in its own @Transactional before this method
+            // returns — isolated from any downstream work (Issue 21).
+            examService.markExamsOngoing(toStart);
         }
     }
 
@@ -63,13 +64,13 @@ public class ExamScheduler {
         if (toComplete.isEmpty())
             return;
 
-        // 1. Mark exams COMPLETED
-        toComplete.forEach(e -> e.setStatus(Exam.ExamStatus.COMPLETED));
-        examRepository.saveAll(toComplete);
-        log.info("Transitioned {} exam(s) to COMPLETED", toComplete.size());
+        // 1. Commit exam status in a dedicated transaction BEFORE touching sessions.
+        // If session submissions fail, the exam is already permanently COMPLETED (Issue
+        // 21).
+        List<Exam> completed = examService.markExamsCompleted(toComplete);
 
         // 2. Auto-submit every open session for those exams
-        for (Exam exam : toComplete) {
+        for (Exam exam : completed) {
             List<ExamSession> activeSessions = sessionRepository.findActiveSessionsByExamId(exam.getId());
 
             for (ExamSession session : activeSessions) {
