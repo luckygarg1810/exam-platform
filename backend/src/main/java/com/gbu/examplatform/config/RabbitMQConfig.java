@@ -20,6 +20,10 @@ public class RabbitMQConfig {
     public static final String BEHAVIOR_EVENTS_QUEUE = "behavior.events";
     public static final String PROCTORING_RESULTS_QUEUE = "proctoring.results";
 
+    // Dead-letter infrastructure (captures messages that fail processing)
+    public static final String DLX_NAME = "proctoring.dlx";
+    public static final String PROCTORING_RESULTS_DLQ = "proctoring.results.dlq";
+
     // Routing keys
     public static final String FRAME_ROUTING_KEY = "frame.analysis";
     public static final String AUDIO_ROUTING_KEY = "audio.analysis";
@@ -48,7 +52,29 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue proctoringResultsQueue() {
-        return QueueBuilder.durable(PROCTORING_RESULTS_QUEUE).build();
+        // Dead-letter failed messages to the DLX so they can be inspected/retried
+        // instead of being silently dropped when AUTO-nacked on listener exception.
+        return QueueBuilder.durable(PROCTORING_RESULTS_QUEUE)
+                .withArgument("x-dead-letter-exchange", DLX_NAME)
+                .withArgument("x-dead-letter-routing-key", PROCTORING_RESULTS_QUEUE)
+                .build();
+    }
+
+    @Bean
+    public DirectExchange deadLetterExchange() {
+        return ExchangeBuilder.directExchange(DLX_NAME).durable(true).build();
+    }
+
+    @Bean
+    public Queue proctoringResultsDlq() {
+        return QueueBuilder.durable(PROCTORING_RESULTS_DLQ).build();
+    }
+
+    @Bean
+    public Binding proctoringResultsDlqBinding() {
+        return BindingBuilder.bind(proctoringResultsDlq())
+                .to(deadLetterExchange())
+                .with(PROCTORING_RESULTS_QUEUE);
     }
 
     @Bean

@@ -24,13 +24,15 @@ import java.util.concurrent.TimeUnit;
 /**
  * STOMP WebSocket handler for proctoring media.
  *
- * All @MessageMapping paths are relative to the application destination prefix set in WebSocketConfig (/app).
+ * All @MessageMapping paths are relative to the application destination prefix
+ * set in WebSocketConfig (/app).
  *
  * Student sends to:
- *   /app/exam/{sessionId}/frame     → decode Base64, relay to RabbitMQ frame.analysis
- *   /app/exam/{sessionId}/audio     → decode Base64, relay to RabbitMQ audio.analysis
- *   /app/exam/{sessionId}/event     → save behavior event to DB, relay to RabbitMQ behavior.events
- *   /app/exam/{sessionId}/heartbeat → update session heartbeat
+ * /app/exam/{sessionId}/frame → decode Base64, relay to RabbitMQ frame.analysis
+ * /app/exam/{sessionId}/audio → decode Base64, relay to RabbitMQ audio.analysis
+ * /app/exam/{sessionId}/event → save behavior event to DB, relay to RabbitMQ
+ * behavior.events
+ * /app/exam/{sessionId}/heartbeat → update session heartbeat
  */
 @Controller
 @Slf4j
@@ -55,7 +57,8 @@ public class ExamWebSocketController {
     public void handleFrame(@DestinationVariable UUID sessionId,
             @Payload Map<String, Object> payload) {
         ExamSession session = validateSession(sessionId);
-        if (session == null) return;
+        if (session == null)
+            return;
 
         Map<String, Object> message = new HashMap<>(payload);
         message.put("sessionId", sessionId.toString());
@@ -77,7 +80,8 @@ public class ExamWebSocketController {
     public void handleAudio(@DestinationVariable UUID sessionId,
             @Payload Map<String, Object> payload) {
         ExamSession session = validateSession(sessionId);
-        if (session == null) return;
+        if (session == null)
+            return;
 
         Map<String, Object> message = new HashMap<>(payload);
         message.put("sessionId", sessionId.toString());
@@ -92,7 +96,8 @@ public class ExamWebSocketController {
     }
 
     /**
-     * Receives a browser behavior event (tab switch, fullscreen exit, copy, paste, etc.).
+     * Receives a browser behavior event (tab switch, fullscreen exit, copy, paste,
+     * etc.).
      * Saves immediately to DB, applies quick rule-based checks, relays to RabbitMQ.
      */
     @MessageMapping("/exam/{sessionId}/event")
@@ -100,11 +105,22 @@ public class ExamWebSocketController {
     public void handleBehaviorEvent(@DestinationVariable UUID sessionId,
             @Payload Map<String, Object> payload) {
         ExamSession session = validateSession(sessionId);
-        if (session == null) return;
+        if (session == null)
+            return;
 
         String eventType = String.valueOf(payload.getOrDefault("type", "UNKNOWN"));
-        Instant timestamp = Instant.ofEpochMilli(
-                ((Number) payload.getOrDefault("timestamp", System.currentTimeMillis())).longValue());
+        Object tsObj = payload.getOrDefault("timestamp", System.currentTimeMillis());
+        long tsMillis;
+        if (tsObj instanceof Number) {
+            tsMillis = ((Number) tsObj).longValue();
+        } else {
+            try {
+                tsMillis = Long.parseLong(String.valueOf(tsObj));
+            } catch (NumberFormatException e) {
+                tsMillis = System.currentTimeMillis();
+            }
+        }
+        Instant timestamp = Instant.ofEpochMilli(tsMillis);
 
         // Persist raw browser event
         BehaviorEvent be = BehaviorEvent.builder()
@@ -130,13 +146,15 @@ public class ExamWebSocketController {
     }
 
     /**
-     * Session keep-alive: updates last_heartbeat_at in DB and refreshes Redis presence TTL.
+     * Session keep-alive: updates last_heartbeat_at in DB and refreshes Redis
+     * presence TTL.
      * Client should send every 30 seconds.
      */
     @MessageMapping("/exam/{sessionId}/heartbeat")
     public void handleHeartbeat(@DestinationVariable UUID sessionId) {
         ExamSession session = validateSession(sessionId);
-        if (session == null) return;
+        if (session == null)
+            return;
 
         session.setLastHeartbeatAt(Instant.now());
         sessionRepository.save(session);
@@ -152,7 +170,8 @@ public class ExamWebSocketController {
 
     /**
      * Validates that a session exists, is not submitted, and is not suspended.
-     * Returns null and logs a warning if any check fails (WebSocket handlers can't throw HTTP errors).
+     * Returns null and logs a warning if any check fails (WebSocket handlers can't
+     * throw HTTP errors).
      */
     private ExamSession validateSession(UUID sessionId) {
         return sessionRepository.findById(sessionId)
@@ -191,4 +210,3 @@ public class ExamWebSocketController {
         }
     }
 }
-

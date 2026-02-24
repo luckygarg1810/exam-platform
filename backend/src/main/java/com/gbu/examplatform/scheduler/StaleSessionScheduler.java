@@ -23,8 +23,9 @@ public class StaleSessionScheduler {
     /**
      * Every 5 minutes: auto-submit sessions with heartbeat older than 10 minutes
      */
+    // Non-transactional: each submitSession() call manages its own transaction,
+    // so a failure on one stale session never rolls back others (Issue 14).
     @Scheduled(cron = "0 */5 * * * *")
-    @Transactional
     public void autoSubmitStaleSessions() {
         Instant cutoff = Instant.now().minusSeconds(600); // 10 minutes
         List<ExamSession> stale = sessionRepository.findStaleSessions(cutoff);

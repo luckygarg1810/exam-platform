@@ -70,13 +70,14 @@ public class QuestionService {
         UUID userId = securityUtils.getCurrentUserId();
         String cacheKey = "exam:questions:" + examId + ":" + userId;
 
-        // Check Redis for pre-shuffled order
-        List<String> cachedIds = redisTemplate.opsForList().range(cacheKey, 0, -1);
+        // Check Redis for pre-shuffled order (stored as a comma-joined string)
+        String cachedValue = redisTemplate.opsForValue().get(cacheKey);
 
         List<Question> allQuestions = questionRepository.findByExamIdOrderByOrderIndexAsc(examId);
 
-        if (cachedIds != null && !cachedIds.isEmpty()) {
+        if (cachedValue != null && !cachedValue.isEmpty()) {
             // Restore order from Redis
+            List<String> cachedIds = Arrays.asList(cachedValue.split(","));
             Map<String, Question> questionMap = allQuestions.stream()
                     .collect(Collectors.toMap(q -> q.getId().toString(), q -> q));
             return cachedIds.stream()
@@ -93,12 +94,13 @@ public class QuestionService {
             Collections.shuffle(shuffled);
         }
 
-        // Cache in Redis
-        List<String> ids = shuffled.stream().map(q -> q.getId().toString()).collect(Collectors.toList());
-        redisTemplate.delete(cacheKey);
-        if (!ids.isEmpty()) {
-            redisTemplate.opsForList().rightPushAll(cacheKey, ids);
-            redisTemplate.expire(cacheKey, exam.getDurationMinutes() + 30, TimeUnit.MINUTES);
+        // Atomically cache in Redis using SET NX EX to avoid race conditions between
+        // concurrent requests for the same user producing interleaved / conflicting
+        // orders.
+        if (!shuffled.isEmpty()) {
+            String ids = shuffled.stream().map(q -> q.getId().toString()).collect(Collectors.joining(","));
+            redisTemplate.opsForValue().setIfAbsent(cacheKey, ids,
+                    exam.getDurationMinutes() + 30, TimeUnit.MINUTES);
         }
 
         return shuffled.stream().map(q -> toDto(q, true)).collect(Collectors.toList());

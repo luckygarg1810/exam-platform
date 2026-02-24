@@ -26,8 +26,10 @@ public class ExamScheduler {
     /**
      * Every minute at :00 — PUBLISHED → ONGOING when start_time passes.
      */
+    // No @Transactional here: Spring Data saveAll() provides its own transaction;
+    // keeping the scheduler non-transactional avoids sharing a transaction with
+    // submitSession() calls that could mark the outer tx rollback-only (Issue 14).
     @Scheduled(cron = "0 * * * * *")
-    @Transactional
     public void transitionPublishedToOngoing() {
         Instant now = Instant.now();
         List<Exam> toStart = examRepository.findByStatusAndStartTimeBeforeAndIsDeletedFalse(
@@ -48,8 +50,11 @@ public class ExamScheduler {
      * browser is still open and sending heartbeats (the stale-session scheduler
      * alone would only catch them 10+ minutes later).
      */
+    // Non-transactional by design: examRepository.saveAll() runs in its own
+    // Spring Data transaction; each submitSession() call runs in its own
+    // @Transactional(REQUIRED) transaction, so a single session failure never
+    // rolls back the exam status update or other sessions (Issue 14).
     @Scheduled(cron = "30 * * * * *")
-    @Transactional
     public void transitionOngoingToCompleted() {
         Instant now = Instant.now();
         List<Exam> toComplete = examRepository.findByStatusAndEndTimeBeforeAndIsDeletedFalse(
