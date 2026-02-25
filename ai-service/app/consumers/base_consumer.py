@@ -90,7 +90,12 @@ class BaseConsumer(threading.Thread, abc.ABC):
         self._connection = pika.BlockingConnection(params)
         self._channel    = self._connection.channel()
 
-        self._channel.queue_declare(queue=self.queue_name, durable=True)
+        # passive=True: just assert the queue exists; don't try to re-declare
+        # with different arguments (Spring Boot owns the queue declarations).
+        self._channel.queue_declare(
+            queue=self.queue_name,
+            passive=True,
+        )
         self._channel.basic_qos(prefetch_count=self._prefetch)
         logger.info("%s connected to %s", self.name, self.queue_name)
 

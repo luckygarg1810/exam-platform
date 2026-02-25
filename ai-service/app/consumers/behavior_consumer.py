@@ -115,10 +115,10 @@ def _persist_event(session_id: str, event_type: str, timestamp_ms: int, raw_msg:
                     if k not in ("sessionId", "type", "timestamp")} or None
         with get_db() as db:
             db.add(BehaviorEvent(
-                session_id = session_id,
-                event_type = event_type,
-                timestamp  = event_dt,
-                metadata   = metadata,
+                session_id     = session_id,
+                event_type     = event_type,
+                timestamp      = event_dt,
+                event_metadata = metadata,
             ))
     except Exception as exc:
         logger.warning("Failed to persist behavior event (session=%s type=%s): %s",

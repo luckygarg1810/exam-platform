@@ -71,8 +71,8 @@ class BehaviorEvent(Base):
     """
     __tablename__ = "behavior_events"
 
-    id         = Column(BigInteger, primary_key=True, autoincrement=True)
-    session_id = Column(UUID(as_uuid=True), nullable=False)
-    event_type = Column(String(50), nullable=False)
-    timestamp  = Column(DateTime(timezone=True), nullable=False)
-    metadata   = Column(JSONB, nullable=True)
+    id             = Column(BigInteger, primary_key=True, autoincrement=True)
+    session_id     = Column(UUID(as_uuid=True), nullable=False)
+    event_type     = Column(String(50), nullable=False)
+    timestamp      = Column(DateTime(timezone=True), nullable=False)
+    event_metadata = Column("metadata", JSONB, nullable=True)

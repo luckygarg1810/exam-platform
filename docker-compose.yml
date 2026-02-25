@@ -145,11 +145,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      test: [ "CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1" ]
       interval: 30s
-      timeout: 10s
+      timeout: 15s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
   # ─────────────────────────────────────────────────────────────────
   # Python AI Service (proctoring vision, audio, behaviour)
@@ -201,37 +201,43 @@ services:
       retries: 5
       start_period: 120s      # allow time for model downloads on first run
 
-  # # ─────────────────────────────────────────────────────────────────
-  # # React Frontend
-  # # ─────────────────────────────────────────────────────────────────
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: exam-frontend
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - backend
+  # ─────────────────────────────────────────────────────────────────
+  # React Frontend
+  # ─────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: exam-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3000/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # ─────────────────────────────────────────────────────────────────
-  # Nginx Reverse Proxy (disabled until frontend is ready)
+  # Nginx Reverse Proxy
   # ─────────────────────────────────────────────────────────────────
-  # nginx:
-  #   image: nginx:1.25-alpine
-  #   container_name: exam-nginx
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-  #   depends_on:
-  #     - backend
-  #     - frontend
-  #   healthcheck:
-  #     test: [ "CMD", "wget", "-qO-", "http://localhost/" ]
-  #     interval: 30s
-  #     timeout: 5s
-  #     retries: 3
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: exam-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://127.0.0.1/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   postgres_data:

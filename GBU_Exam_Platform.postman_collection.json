@@ -1,1473 +1,1653 @@
 {
-    "info": {
-        "name": "GBU Exam Platform",
-        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-        "description": "Complete API collection for the GBU Exam Platform backend.\n\nSetup:\n1. Set the `baseUrl` variable to your server (default: http://localhost:8080)\n2. Call Login or Register — the accessToken and refreshToken collection variables are set automatically.\n3. All subsequent requests use {{accessToken}} via Bearer auth."
-    },
-    "auth": {
-        "type": "bearer",
-        "bearer": [
-            {
-                "key": "token",
-                "value": "{{accessToken}}",
-                "type": "string"
-            }
-        ]
-    },
-    "variable": [
-        {
-            "key": "baseUrl",
-            "value": "http://localhost:8080",
-            "type": "string"
-        },
-        {
-            "key": "accessToken",
-            "value": "",
-            "type": "string"
-        },
-        {
-            "key": "refreshToken",
-            "value": "",
-            "type": "string"
-        },
-        {
-            "key": "examId",
-            "value": "00000000-0000-0000-0000-000000000001",
-            "type": "string"
-        },
-        {
-            "key": "questionId",
-            "value": "00000000-0000-0000-0000-000000000002",
-            "type": "string"
-        },
-        {
-            "key": "sessionId",
-            "value": "00000000-0000-0000-0000-000000000003",
-            "type": "string"
-        },
-        {
-            "key": "userId",
-            "value": "00000000-0000-0000-0000-000000000004",
-            "type": "string"
-        }
-    ],
-    "item": [
-        {
-            "name": "Auth",
-            "item": [
-                {
-                    "name": "Register",
-                    "request": {
-                        "auth": {
-                            "type": "noauth"
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"name\": \"Test Student\",\n  \"email\": \"student@example.com\",\n  \"password\": \"Password1\",\n  \"universityRoll\": \"2021CS001\",\n  \"department\": \"Computer Science\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/register",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "register"
-                            ]
-                        },
-                        "description": "Register a new student account. Self-registration is always STUDENT role. Returns access + refresh tokens."
-                    },
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "  const body = pm.response.json();",
-                                    "  pm.collectionVariables.set('accessToken', body.accessToken);",
-                                    "  pm.collectionVariables.set('refreshToken', body.refreshToken);",
-                                    "  pm.collectionVariables.set('userId', body.userId);",
-                                    "}"
-                                ]
-                            }
-                        }
-                    ]
-                },
-                {
-                    "name": "Login",
-                    "request": {
-                        "auth": {
-                            "type": "noauth"
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"email\": \"student@example.com\",\n  \"password\": \"Password1\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/login",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "login"
-                            ]
-                        },
-                        "description": "Login and receive access + refresh tokens."
-                    },
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 200) {",
-                                    "  const body = pm.response.json();",
-                                    "  pm.collectionVariables.set('accessToken', body.accessToken);",
-                                    "  pm.collectionVariables.set('refreshToken', body.refreshToken);",
-                                    "  pm.collectionVariables.set('userId', body.userId);",
-                                    "}"
-                                ]
-                            }
-                        }
-                    ]
-                },
-                {
-                    "name": "Logout",
-                    "request": {
-                        "method": "POST",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/logout",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "logout"
-                            ]
-                        },
-                        "description": "Blacklists the current access token in Redis. Pass the Bearer token in the Authorization header (auto-set from collection auth)."
-                    }
-                },
-                {
-                    "name": "Refresh Token",
-                    "request": {
-                        "auth": {
-                            "type": "noauth"
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/refresh",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "refresh"
-                            ]
-                        },
-                        "description": "Exchange refresh token for a new access token. Old refresh token is rotated."
-                    },
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 200) {",
-                                    "  const body = pm.response.json();",
-                                    "  pm.collectionVariables.set('accessToken', body.accessToken);",
-                                    "  pm.collectionVariables.set('refreshToken', body.refreshToken);",
-                                    "}"
-                                ]
-                            }
-                        }
-                    ]
-                },
-                {
-                    "name": "Forgot Password",
-                    "request": {
-                        "auth": {
-                            "type": "noauth"
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"email\": \"student@example.com\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/forgot-password",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "forgot-password"
-                            ]
-                        },
-                        "description": "Sends a password-reset email (valid 30 min). Always returns 200 to prevent email enumeration."
-                    }
-                },
-                {
-                    "name": "Reset Password",
-                    "request": {
-                        "auth": {
-                            "type": "noauth"
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"token\": \"<reset-token-from-email>\",\n  \"newPassword\": \"NewPassword1\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/reset-password",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "reset-password"
-                            ]
-                        },
-                        "description": "Reset password using token received in email. Token is valid for 30 minutes."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Users",
-            "item": [
-                {
-                    "name": "Get My Profile",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/users/me",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "users",
-                                "me"
-                            ]
-                        },
-                        "description": "Returns the authenticated user's profile."
-                    }
-                },
-                {
-                    "name": "Update My Profile",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"name\": \"Updated Name\",\n  \"department\": \"Computer Science\",\n  \"universityRoll\": \"2021CS001\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/users/me",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "users",
-                                "me"
-                            ]
-                        },
-                        "description": "Update name, department, and university roll. All fields optional (partial update)."
-                    }
-                },
-                {
-                    "name": "Upload Profile / ID Photo",
-                    "request": {
-                        "method": "POST",
-                        "header": [],
-                        "body": {
-                            "mode": "formdata",
-                            "formdata": [
-                                {
-                                    "key": "file",
-                                    "type": "file",
-                                    "src": ""
-                                },
-                                {
-                                    "key": "isIdPhoto",
-                                    "value": "false",
-                                    "type": "text",
-                                    "description": "Set to true to upload ID photo instead of profile photo"
-                                }
-                            ]
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/users/me/photo",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "users",
-                                "me",
-                                "photo"
-                            ]
-                        },
-                        "description": "Upload profile photo (isIdPhoto=false) or government ID photo (isIdPhoto=true). Max 20MB. Returns presigned MinIO URL."
-                    }
-                },
-                {
-                    "name": "List All Users",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/users?page=0&size=20&sortBy=createdAt&sortDir=DESC",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "users"
-                            ],
-                            "query": [
-                                {
-                                    "key": "search",
-                                    "value": "",
-                                    "disabled": true,
-                                    "description": "Filter by name or email"
-                                },
-                                {
-                                    "key": "page",
-                                    "value": "0"
-                                },
-                                {
-                                    "key": "size",
-                                    "value": "20"
-                                },
-                                {
-                                    "key": "sortBy",
-                                    "value": "createdAt"
-                                },
-                                {
-                                    "key": "sortDir",
-                                    "value": "DESC"
-                                }
-                            ]
-                        },
-                        "description": "ADMIN only. Paginated list of all users with optional name/email search."
-                    }
-                },
-                {
-                    "name": "Get User by ID",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/users/{{userId}}",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "users",
-                                "{{userId}}"
-                            ]
-                        },
-                        "description": "ADMIN only. Get full profile of any user by UUID."
-                    }
-                },
-                {
-                    "name": "Change User Role",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"role\": \"PROCTOR\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/users/{{userId}}/role",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "users",
-                                "{{userId}}",
-                                "role"
-                            ]
-                        },
-                        "description": "ADMIN only. Valid roles: STUDENT, PROCTOR, ADMIN."
-                    }
-                },
-                {
-                    "name": "Delete User (Soft)",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/users/{{userId}}",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "users",
-                                "{{userId}}"
-                            ]
-                        },
-                        "description": "ADMIN only. Sets isActive=false. User can no longer log in."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Exams",
-            "item": [
-                {
-                    "name": "Create Exam",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"title\": \"Mid-Semester CS101\",\n  \"description\": \"Data Structures mid-semester examination\",\n  \"subject\": \"Data Structures\",\n  \"startTime\": \"2026-03-01T09:00:00Z\",\n  \"endTime\": \"2026-03-01T12:00:00Z\",\n  \"durationMinutes\": 90,\n  \"totalMarks\": 100,\n  \"passingMarks\": 40,\n  \"shuffleQuestions\": true,\n  \"shuffleOptions\": true,\n  \"allowLateEntry\": false\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams"
-                            ]
-                        },
-                        "description": "ADMIN only. Creates exam in DRAFT status. startTime must be in the future. endTime > startTime. passingMarks <= totalMarks. durationMinutes: 5–480."
-                    },
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "  pm.collectionVariables.set('examId', pm.response.json().id);",
-                                    "}"
-                                ]
-                            }
-                        }
-                    ]
-                },
-                {
-                    "name": "List Exams",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams?page=0&size=20&sortBy=startTime&sortDir=ASC",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "0"
-                                },
-                                {
-                                    "key": "size",
-                                    "value": "20"
-                                },
-                                {
-                                    "key": "sortBy",
-                                    "value": "startTime"
-                                },
-                                {
-                                    "key": "sortDir",
-                                    "value": "ASC"
-                                }
-                            ]
-                        },
-                        "description": "Admin sees all exams. Students see their enrolled exams."
-                    }
-                },
-                {
-                    "name": "Browse Available Exams",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/available?page=0&size=20",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "available"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "0"
-                                },
-                                {
-                                    "key": "size",
-                                    "value": "20"
-                                }
-                            ]
-                        },
-                        "description": "Lists all PUBLISHED and ONGOING exams — used by students to discover exams they can enroll in."
-                    }
-                },
-                {
-                    "name": "Get Exam",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}"
-                            ]
-                        },
-                        "description": "Get full exam details including question count."
-                    }
-                },
-                {
-                    "name": "Update Exam",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"title\": \"Mid-Semester CS101 (Updated)\",\n  \"description\": \"Updated description\",\n  \"subject\": \"Data Structures\",\n  \"startTime\": \"2026-03-01T09:00:00Z\",\n  \"endTime\": \"2026-03-01T12:00:00Z\",\n  \"durationMinutes\": 120,\n  \"totalMarks\": 100,\n  \"passingMarks\": 40,\n  \"shuffleQuestions\": true,\n  \"shuffleOptions\": true,\n  \"allowLateEntry\": false\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}"
-                            ]
-                        },
-                        "description": "ADMIN only. Only allowed when exam is in DRAFT status."
-                    }
-                },
-                {
-                    "name": "Delete Exam",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}"
-                            ]
-                        },
-                        "description": "ADMIN only. Soft-deletes the exam."
-                    }
-                },
-                {
-                    "name": "Publish Exam",
-                    "request": {
-                        "method": "POST",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}/publish",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}",
-                                "publish"
-                            ]
-                        },
-                        "description": "ADMIN only. Moves exam from DRAFT → PUBLISHED. Requires at least one question to be added first."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Enrollment",
-            "item": [
-                {
-                    "name": "Enroll in Exam",
-                    "request": {
-                        "method": "POST",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}/enroll",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}",
-                                "enroll"
-                            ]
-                        },
-                        "description": "STUDENT only. Enroll in a PUBLISHED or ONGOING (if allowLateEntry=true) exam. Fails if already enrolled or exam has ended."
-                    }
-                },
-                {
-                    "name": "Unenroll from Exam",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}/enroll",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}",
-                                "enroll"
-                            ]
-                        },
-                        "description": "STUDENT only. Withdraw enrollment. Blocked if exam is ONGOING/COMPLETED or if a session was already started."
-                    }
-                },
-                {
-                    "name": "List Enrollments",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}/enrollments?page=0&size=50",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}",
-                                "enrollments"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "0"
-                                },
-                                {
-                                    "key": "size",
-                                    "value": "50"
-                                }
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Paginated list of enrolled students for the exam."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Questions",
-            "item": [
-                {
-                    "name": "Add MCQ Question",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"text\": \"What is the time complexity of binary search?\",\n  \"type\": \"MCQ\",\n  \"options\": [\n    { \"key\": \"A\", \"text\": \"O(n)\" },\n    { \"key\": \"B\", \"text\": \"O(log n)\" },\n    { \"key\": \"C\", \"text\": \"O(n log n)\" },\n    { \"key\": \"D\", \"text\": \"O(1)\" }\n  ],\n  \"correctAnswer\": \"B\",\n  \"marks\": 2,\n  \"negativeMarks\": 0.5\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}/questions",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}",
-                                "questions"
-                            ]
-                        },
-                        "description": "ADMIN only. Add an MCQ to the exam. Options must have at least 2 entries. correctAnswer must match one of the option keys."
-                    },
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "  pm.collectionVariables.set('questionId', pm.response.json().id);",
-                                    "}"
-                                ]
-                            }
-                        }
-                    ]
-                },
-                {
-                    "name": "Add Short Answer Question",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"text\": \"Explain the concept of recursion in 3-4 sentences.\",\n  \"type\": \"SHORT_ANSWER\",\n  \"marks\": 5,\n  \"negativeMarks\": 0\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}/questions",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}",
-                                "questions"
-                            ]
-                        },
-                        "description": "ADMIN only. Add a short-answer question. No options or correctAnswer needed."
-                    }
-                },
-                {
-                    "name": "List Questions",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}/questions?page=0&size=50",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}",
-                                "questions"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "0"
-                                },
-                                {
-                                    "key": "size",
-                                    "value": "50"
-                                }
-                            ]
-                        },
-                        "description": "Sorted by orderIndex. Admins see correctAnswer; students see null for correctAnswer."
-                    }
-                },
-                {
-                    "name": "Get Shuffled Questions (Student)",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}/questions/shuffled",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}",
-                                "questions",
-                                "shuffled"
-                            ]
-                        },
-                        "description": "STUDENT only. Returns questions in a randomised order cached in Redis for the duration of the exam. correctAnswer is always hidden."
-                    }
-                },
-                {
-                    "name": "Update Question",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"text\": \"What is the time complexity of binary search? (updated)\",\n  \"type\": \"MCQ\",\n  \"options\": [\n    { \"key\": \"A\", \"text\": \"O(n)\" },\n    { \"key\": \"B\", \"text\": \"O(log n)\" },\n    { \"key\": \"C\", \"text\": \"O(n log n)\" },\n    { \"key\": \"D\", \"text\": \"O(1)\" }\n  ],\n  \"correctAnswer\": \"B\",\n  \"marks\": 2,\n  \"negativeMarks\": 0.5,\n  \"orderIndex\": 1\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}/questions/{{questionId}}",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}",
-                                "questions",
-                                "{{questionId}}"
-                            ]
-                        },
-                        "description": "ADMIN only. Blocked when exam status is PUBLISHED or ONGOING."
-                    }
-                },
-                {
-                    "name": "Delete Question",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/exams/{{examId}}/questions/{{questionId}}",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "exams",
-                                "{{examId}}",
-                                "questions",
-                                "{{questionId}}"
-                            ]
-                        },
-                        "description": "ADMIN only. Blocked when exam status is PUBLISHED or ONGOING."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Sessions",
-            "item": [
-                {
-                    "name": "Start Session",
-                    "request": {
-                        "method": "POST",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/sessions/start?examId={{examId}}",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "sessions",
-                                "start"
-                            ],
-                            "query": [
-                                {
-                                    "key": "examId",
-                                    "value": "{{examId}}"
-                                }
-                            ]
-                        },
-                        "description": "STUDENT only. Must be enrolled. Exam must be ONGOING. Blocks if another active session exists. Returns session details including remaining time."
-                    },
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "  pm.collectionVariables.set('sessionId', pm.response.json().id);",
-                                    "}"
-                                ]
-                            }
-                        }
-                    ]
-                },
-                {
-                    "name": "Get Session",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/sessions/{{sessionId}}",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "sessions",
-                                "{{sessionId}}"
-                            ]
-                        },
-                        "description": "Get session details including status, score, and time remaining."
-                    }
-                },
-                {
-                    "name": "Heartbeat",
-                    "request": {
-                        "method": "POST",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/heartbeat",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "sessions",
-                                "{{sessionId}}",
-                                "heartbeat"
-                            ]
-                        },
-                        "description": "STUDENT only. Keep-alive ping. Should be called every 30 seconds to prevent stale session auto-submission."
-                    }
-                },
-                {
-                    "name": "Submit Session",
-                    "request": {
-                        "method": "POST",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/submit",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "sessions",
-                                "{{sessionId}}",
-                                "submit"
-                            ]
-                        },
-                        "description": "STUDENT only. Finalises the exam. MCQ questions are auto-graded immediately. Short-answer marks default to 0 until manually graded."
-                    }
-                },
-                {
-                    "name": "Get Active Sessions",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/sessions/active?page=0&size=50",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "sessions",
-                                "active"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "0"
-                                },
-                                {
-                                    "key": "size",
-                                    "value": "50"
-                                }
-                            ]
-                        },
-                        "description": "PROCTOR/ADMIN only. Returns all sessions with a recent heartbeat (not submitted, not suspended)."
-                    }
-                },
-                {
-                    "name": "Grade Short Answer",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"questionId\": \"{{questionId}}\",\n  \"marksAwarded\": 4.5,\n  \"comment\": \"Good explanation, minor points missed.\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/grade",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "sessions",
-                                "{{sessionId}}",
-                                "grade"
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Manually award marks for a SHORT_ANSWER question in a submitted session. Recalculates total score and pass/fail result."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Answers",
-            "item": [
-                {
-                    "name": "Save Answer (MCQ)",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"questionId\": \"{{questionId}}\",\n  \"selectedAnswer\": \"B\",\n  \"textAnswer\": null\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/answers",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "sessions",
-                                "{{sessionId}}",
-                                "answers"
-                            ]
-                        },
-                        "description": "STUDENT only. Upsert — calling again with the same questionId overwrites the previous answer. Use selectedAnswer for MCQ."
-                    }
-                },
-                {
-                    "name": "Save Answer (Short Answer)",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"questionId\": \"{{questionId}}\",\n  \"selectedAnswer\": null,\n  \"textAnswer\": \"Recursion is a programming technique where a function calls itself...\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/answers",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "sessions",
-                                "{{sessionId}}",
-                                "answers"
-                            ]
-                        },
-                        "description": "STUDENT only. Use textAnswer for SHORT_ANSWER questions."
-                    }
-                },
-                {
-                    "name": "Get All Answers",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/answers",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "sessions",
-                                "{{sessionId}}",
-                                "answers"
-                            ]
-                        },
-                        "description": "Returns all saved answers for the session."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Proctoring",
-            "item": [
-                {
-                    "name": "Get Proctoring Events",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/events?page=0&size=50",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "proctoring",
-                                "sessions",
-                                "{{sessionId}}",
-                                "events"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "0"
-                                },
-                                {
-                                    "key": "size",
-                                    "value": "50"
-                                }
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Paginated list of AI-generated and manually-flagged proctoring violation events for a session, sorted newest-first."
-                    }
-                },
-                {
-                    "name": "Get Violation Summary",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/summary",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "proctoring",
-                                "sessions",
-                                "{{sessionId}}",
-                                "summary"
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Returns aggregated counters (faceAway, tabSwitch, copyPaste, etc.) and AI risk score."
-                    }
-                },
-                {
-                    "name": "Add Manual Flag",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"eventType\": \"MANUAL_FLAG\",\n  \"description\": \"Student appeared to be reading from notes on paper.\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/flag",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "proctoring",
-                                "sessions",
-                                "{{sessionId}}",
-                                "flag"
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Manually record a violation event. Valid eventType values: MANUAL_FLAG, FACE_MISSING, MULTIPLE_FACES, PHONE_DETECTED, TAB_SWITCH, FULLSCREEN_EXIT, COPY_PASTE, NOTES_DETECTED, IDENTITY_MISMATCH, etc."
-                    }
-                },
-                {
-                    "name": "Clear Proctor Flag",
-                    "request": {
-                        "method": "POST",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/clear",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "proctoring",
-                                "sessions",
-                                "{{sessionId}}",
-                                "clear"
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Mark the last manual flag as a false positive."
-                    }
-                },
-                {
-                    "name": "Add Proctor Note",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"note\": \"Student requested a bathroom break at 10:15 AM, approved.\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/notes",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "proctoring",
-                                "sessions",
-                                "{{sessionId}}",
-                                "notes"
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Attach a free-text note to the session's proctoring record."
-                    }
-                },
-                {
-                    "name": "Suspend Session",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"reason\": \"Multiple faces detected repeatedly. Manual suspension by proctor.\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/suspend",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "proctoring",
-                                "sessions",
-                                "{{sessionId}}",
-                                "suspend"
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Manually suspend the student's session. Student is notified via WebSocket. Session cannot be restarted."
-                    }
-                },
-                {
-                    "name": "Get Behavior Events Feed",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/behavior-events?page=0&size=50",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "proctoring",
-                                "sessions",
-                                "{{sessionId}}",
-                                "behavior-events"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "0"
-                                },
-                                {
-                                    "key": "size",
-                                    "value": "50"
-                                }
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Paginated timeline of raw browser-level events (tab switches, fullscreen exits, copy/paste, focus losses) sent by the student's WebSocket client, sorted newest-first."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Reports",
-            "item": [
-                {
-                    "name": "Get Exam Results",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/reports/exams/{{examId}}/results?page=0&size=50",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "reports",
-                                "exams",
-                                "{{examId}}",
-                                "results"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "0"
-                                },
-                                {
-                                    "key": "size",
-                                    "value": "50"
-                                }
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Paginated result summary for all students who sat the exam: score, pass/fail, risk score, violation count."
-                    }
-                },
-                {
-                    "name": "Export Exam Results CSV",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/reports/exams/{{examId}}/export",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "reports",
-                                "exams",
-                                "{{examId}}",
-                                "export"
-                            ]
-                        },
-                        "description": "ADMIN only. Downloads a CSV file with all student results for the exam. Response Content-Type is text/csv."
-                    }
-                },
-                {
-                    "name": "Get Full Session Report",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/reports/sessions/{{sessionId}}/full",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "reports",
-                                "sessions",
-                                "{{sessionId}}",
-                                "full"
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR only. Full session breakdown: score summary + all answers + proctoring event timeline + violation summary."
-                    }
-                },
-                {
-                    "name": "Get Student History",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/reports/students/{{userId}}/history?page=0&size=20",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "reports",
-                                "students",
-                                "{{userId}}",
-                                "history"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "0"
-                                },
-                                {
-                                    "key": "size",
-                                    "value": "20"
-                                }
-                            ]
-                        },
-                        "description": "ADMIN/PROCTOR/STUDENT. Students may only query their own userId. Returns paginated exam history with score and pass/fail per session."
-                    }
-                }
-            ]
-        }
+  "info": {
+    "name": "GBU Exam Platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Complete API collection for the GBU Exam Platform backend.\n\nSetup:\n1. Set the baseUrl variable (default: http://localhost:8080).\n2. Call Login — accessToken and refreshToken are auto-saved via test scripts.\n3. All subsequent requests use {{accessToken}} via Bearer auth.\n\nRole model:\n  ADMIN   – manages only the exams they created; full CRUD on exams, questions,\n            enrollments, proctor assignments, reports, CSV export.\n  PROCTOR – assigned to exams by admin; monitors sessions, flags violations,\n            suspends/reinstates sessions (scoped to assigned exams only).\n  STUDENT – starts sessions, saves answers, submits exams.\n\nNew variables added:\n  proctorId – UUID of a user with PROCTOR role."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
     ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "examId",
+      "value": "00000000-0000-0000-0000-000000000001",
+      "type": "string"
+    },
+    {
+      "key": "questionId",
+      "value": "00000000-0000-0000-0000-000000000002",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "00000000-0000-0000-0000-000000000003",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "00000000-0000-0000-0000-000000000004",
+      "type": "string"
+    },
+    {
+      "key": "proctorId",
+      "value": "00000000-0000-0000-0000-000000000005",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Token-based authentication. Register and Login are unauthenticated. Tokens are auto-saved to collection variables.",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "pm.collectionVariables.set('accessToken',r.accessToken);",
+                  "pm.collectionVariables.set('refreshToken',r.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Student\",\n  \"email\": \"student@example.com\",\n  \"password\": \"Password1\",\n  \"universityRoll\": \"2021CS001\",\n  \"department\": \"Computer Science\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Self-registration always creates a STUDENT role. Returns accessToken + refreshToken."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "pm.collectionVariables.set('accessToken',r.accessToken);",
+                  "pm.collectionVariables.set('refreshToken',r.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Password1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login and receive access + refresh tokens. Tokens are auto-saved to collection variables by the test script."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Blacklists the current access token in Redis. Bearer token is taken from collection auth."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "pm.collectionVariables.set('accessToken',r.accessToken);",
+                  "pm.collectionVariables.set('refreshToken',r.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Exchange the refresh token for a new access token. Refresh token is rotated on every use."
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "description": "Sends a password-reset email (valid 30 min). Always returns 200 to prevent email enumeration."
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<reset-token-from-email>\",\n  \"newPassword\": \"NewPassword1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "description": "Reset password using token from email. Token is valid for 30 minutes."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "User profile management. Admin-gated routes for listing users, changing roles, and soft-deletion.",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            },
+            "description": "Any authenticated role. Returns the caller's own profile."
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"department\": \"Computer Science\",\n  \"universityRoll\": \"2021CS001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            },
+            "description": "Any authenticated role. All fields optional (partial update)."
+          }
+        },
+        {
+          "name": "Upload Profile / ID Photo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "Image file (JPG/PNG). Max 20 MB."
+                },
+                {
+                  "key": "isIdPhoto",
+                  "value": "false",
+                  "type": "text",
+                  "description": "true = government ID photo, false = profile photo"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me/photo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me",
+                "photo"
+              ]
+            },
+            "description": "Any authenticated role. Max 20 MB. Returns the presigned MinIO URL.\n• isIdPhoto=false → profile photo\n• isIdPhoto=true  → government ID photo used for identity verification"
+          }
+        },
+        {
+          "name": "List All Users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users?page=0&size=20&sortBy=createdAt&sortDir=DESC",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Filter by name or email (optional)",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "sortDir",
+                  "value": "DESC"
+                }
+              ]
+            },
+            "description": "ADMIN only. Paginated list of all users with optional name/email search."
+          }
+        },
+        {
+          "name": "Get User by ID (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "ADMIN only. Returns full profile of any user by UUID."
+          }
+        },
+        {
+          "name": "Change User Role (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"PROCTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/role",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}",
+                "role"
+              ]
+            },
+            "description": "ADMIN only. Valid values: STUDENT, PROCTOR, ADMIN."
+          }
+        },
+        {
+          "name": "Delete User — Soft (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "ADMIN only. Sets isActive=false. User can no longer log in."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exams",
+      "description": "Exam lifecycle management.\n• ADMIN sees only the exams they created.\n• PROCTOR sees only the exams they are assigned to.\n• STUDENT sees only the exams they are enrolled in.\nAll mutation endpoints (update, delete, publish) enforce admin-ownership.",
+      "item": [
+        {
+          "name": "Create Exam (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "if(r.id) pm.collectionVariables.set('examId',r.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Mid-Semester CS101\",\n  \"description\": \"Data Structures mid-semester examination\",\n  \"subject\": \"Data Structures\",\n  \"startTime\": \"2026-06-01T09:00:00Z\",\n  \"endTime\": \"2026-06-01T12:00:00Z\",\n  \"durationMinutes\": 90,\n  \"totalMarks\": 100,\n  \"passingMarks\": 40,\n  \"shuffleQuestions\": true,\n  \"shuffleOptions\": true,\n  \"allowLateEntry\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/exams",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams"
+              ]
+            },
+            "description": "ADMIN only. Creates an exam in DRAFT status.\nConstraints: startTime must be future, endTime > startTime, passingMarks <= totalMarks, durationMinutes 5–480.\nThe exam is scoped to the creating admin — other admins cannot see or modify it."
+          }
+        },
+        {
+          "name": "List Exams",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams?page=0&size=20&sortBy=startTime&sortDir=ASC",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "startTime"
+                },
+                {
+                  "key": "sortDir",
+                  "value": "ASC"
+                }
+              ]
+            },
+            "description": "Role-scoped listing:\n• ADMIN   → only exams created by the authenticated admin.\n• PROCTOR → only exams assigned to the authenticated proctor.\n• STUDENT → only exams the student is enrolled in."
+          }
+        },
+        {
+          "name": "Browse Available Exams",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/available?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "available"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "All authenticated roles. Lists all PUBLISHED and ONGOING exams (for student discovery)."
+          }
+        },
+        {
+          "name": "Get My Assigned Exams (Proctor)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/my-assigned",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "my-assigned"
+              ]
+            },
+            "description": "PROCTOR only. Returns all exams the authenticated proctor is currently assigned to."
+          }
+        },
+        {
+          "name": "Get Exam",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}"
+              ]
+            },
+            "description": "Any authenticated role. Returns full exam details including question count."
+          }
+        },
+        {
+          "name": "Update Exam (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Mid-Semester CS101 (Updated)\",\n  \"description\": \"Updated description\",\n  \"subject\": \"Data Structures\",\n  \"startTime\": \"2026-06-01T09:00:00Z\",\n  \"endTime\": \"2026-06-01T12:00:00Z\",\n  \"durationMinutes\": 120,\n  \"totalMarks\": 100,\n  \"passingMarks\": 40,\n  \"shuffleQuestions\": true,\n  \"shuffleOptions\": true,\n  \"allowLateEntry\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Allowed only when exam status is DRAFT."
+          }
+        },
+        {
+          "name": "Delete Exam (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Soft-deletes the exam (isDeleted=true)."
+          }
+        },
+        {
+          "name": "Publish Exam (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "publish"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Moves exam DRAFT → PUBLISHED. Requires at least one question."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Proctor Assignment",
+      "description": "Admin-managed proctor-to-exam assignment.\n• A proctor cannot be assigned to two time-overlapping exams.\n• All mutation endpoints require the caller to be the exam creator.\n• Proctors gain scope to all session/proctoring/report endpoints for their assigned exams.",
+      "item": [
+        {
+          "name": "Assign Proctor to Exam (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/proctors/{{proctorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "proctors",
+                "{{proctorId}}"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Assigns a PROCTOR-role user to the exam. Returns 409 if the proctor already has an overlapping assignment."
+          }
+        },
+        {
+          "name": "Unassign Proctor from Exam (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/proctors/{{proctorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "proctors",
+                "{{proctorId}}"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Removes the proctor assignment."
+          }
+        },
+        {
+          "name": "Get Proctors for Exam (Admin / Assigned Proctor)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/proctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "proctors"
+              ]
+            },
+            "description": "ADMIN (exam creator) or an assigned PROCTOR. Returns the list of proctors assigned to the exam."
+          }
+        },
+        {
+          "name": "Get Assigned Exams for a Proctor (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{proctorId}}/assigned-exams",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{proctorId}}",
+                "assigned-exams"
+              ]
+            },
+            "description": "ADMIN only. Returns exams the specified proctor is assigned to. Results are filtered to the authenticated admin's own exams."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Enrollment",
+      "description": "Admin-only enrollment management — students cannot self-enroll.\nThe authenticated admin must be the creator of the target exam.\nEnrolled students will see the exam on their dashboard once the exam is PUBLISHED.",
+      "item": [
+        {
+          "name": "Enroll Student (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/enrollments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "enrollments"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Enrolls a single STUDENT-role user. Returns 409 if already enrolled."
+          }
+        },
+        {
+          "name": "Bulk Enroll Students (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [\n    \"{{userId}}\",\n    \"00000000-0000-0000-0000-000000000010\",\n    \"00000000-0000-0000-0000-000000000011\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/enrollments/bulk",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "enrollments",
+                "bulk"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Bulk-enrolls multiple students. Response contains per-userId success/error breakdown."
+          }
+        },
+        {
+          "name": "Unenroll Student (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/enrollments/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "enrollments",
+                "{{userId}}"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Removes a student's enrollment. Blocked if the exam is ONGOING/COMPLETED or the student already started a session."
+          }
+        },
+        {
+          "name": "List Enrollments (Admin / Assigned Proctor)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/enrollments?page=0&size=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "enrollments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "ADMIN (exam creator) or an assigned PROCTOR. Paginated list of enrolled students."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Questions",
+      "description": "Exam question management. ADMIN only for mutations (exam creator scope). Students see questions without correctAnswer.",
+      "item": [
+        {
+          "name": "Add MCQ Question (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "if(r.id) pm.collectionVariables.set('questionId',r.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"What is the time complexity of binary search?\",\n  \"type\": \"MCQ\",\n  \"options\": [\n    {\n      \"key\": \"A\",\n      \"text\": \"O(n)\"\n    },\n    {\n      \"key\": \"B\",\n      \"text\": \"O(log n)\"\n    },\n    {\n      \"key\": \"C\",\n      \"text\": \"O(n log n)\"\n    },\n    {\n      \"key\": \"D\",\n      \"text\": \"O(1)\"\n    }\n  ],\n  \"correctAnswer\": \"B\",\n  \"marks\": 2,\n  \"negativeMarks\": 0.5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "questions"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Add an MCQ. options must have ≥2 entries. correctAnswer must match one of the option keys."
+          }
+        },
+        {
+          "name": "Add Short Answer Question (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Explain the concept of recursion in 3\\u20134 sentences.\",\n  \"type\": \"SHORT_ANSWER\",\n  \"marks\": 5,\n  \"negativeMarks\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "questions"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Add a short-answer question. options and correctAnswer are not required."
+          }
+        },
+        {
+          "name": "List Questions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/questions?page=0&size=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "questions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Any authenticated role. Sorted by orderIndex. Admins see correctAnswer; students receive null for correctAnswer."
+          }
+        },
+        {
+          "name": "Get Shuffled Questions (Student)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/questions/shuffled",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "questions",
+                "shuffled"
+              ]
+            },
+            "description": "STUDENT only. Questions in a student-specific randomised order (cached in Redis for exam duration). correctAnswer is always hidden."
+          }
+        },
+        {
+          "name": "Update Question (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"What is the time complexity of binary search? (updated)\",\n  \"type\": \"MCQ\",\n  \"options\": [\n    {\n      \"key\": \"A\",\n      \"text\": \"O(n)\"\n    },\n    {\n      \"key\": \"B\",\n      \"text\": \"O(log n)\"\n    },\n    {\n      \"key\": \"C\",\n      \"text\": \"O(n log n)\"\n    },\n    {\n      \"key\": \"D\",\n      \"text\": \"O(1)\"\n    }\n  ],\n  \"correctAnswer\": \"B\",\n  \"marks\": 2,\n  \"negativeMarks\": 0.5,\n  \"orderIndex\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/questions/{{questionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "questions",
+                "{{questionId}}"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Blocked when exam status is PUBLISHED or ONGOING."
+          }
+        },
+        {
+          "name": "Delete Question (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{examId}}/questions/{{questionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{examId}}",
+                "questions",
+                "{{questionId}}"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Blocked when exam status is PUBLISHED or ONGOING."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "description": "Exam session lifecycle.\n• STUDENT: start, heartbeat, save answers, verify identity, submit.\n• PROCTOR (assigned) / ADMIN (creator): view active sessions, verify identity, suspend, reinstate.",
+      "item": [
+        {
+          "name": "Start Session (Student)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "if(r.id) pm.collectionVariables.set('sessionId',r.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/start?examId={{examId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "start"
+              ],
+              "query": [
+                {
+                  "key": "examId",
+                  "value": "{{examId}}"
+                }
+              ]
+            },
+            "description": "STUDENT only. Must be enrolled and exam must be ONGOING. Blocks if another active session exists. Response includes remaining time in seconds."
+          }
+        },
+        {
+          "name": "Get Session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "Session owner, assigned proctor, or admin. Returns status, score, and remaining time."
+          }
+        },
+        {
+          "name": "Heartbeat (Student)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/heartbeat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{sessionId}}",
+                "heartbeat"
+              ]
+            },
+            "description": "STUDENT only. Keep-alive ping. Call every ~30 seconds to prevent stale-session auto-submission."
+          }
+        },
+        {
+          "name": "Submit Session (Student)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/submit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{sessionId}}",
+                "submit"
+              ]
+            },
+            "description": "STUDENT only. Finalises the exam; MCQs are auto-graded immediately. Short-answer questions await manual review."
+          }
+        },
+        {
+          "name": "Get Active Sessions (Admin / Proctor)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/active?page=0&size=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "active"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "PROCTOR / ADMIN only.\n• PROCTOR sees only sessions belonging to their assigned exams.\n• ADMIN sees all active sessions for all their exams.\nActive = recent heartbeat, not submitted, not suspended."
+          }
+        },
+        {
+          "name": "Verify Identity (Student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selfieBase64\": \"<base64-encoded-JPEG-or-PNG>\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/verify-identity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{sessionId}}",
+                "verify-identity"
+              ]
+            },
+            "description": "STUDENT only. Submits a selfie (base64-encoded image) for identity verification at session start. Image is compared against the student's registered ID photo."
+          }
+        },
+        {
+          "name": "Reinstate Session (Admin / Proctor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"False positive \\u2014 proctor reviewed footage and cleared the student.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/reinstate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{sessionId}}",
+                "reinstate"
+              ]
+            },
+            "description": "ADMIN (exam creator) or assigned PROCTOR.\nReinstates a suspended session. reason is optional (body can be omitted entirely).\nNotifies the student via WebSocket (/queue/exam/{sessionId}/suspend reverted)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Answers",
+      "description": "Answer saving for an active exam session.\n• STUDENT: upsert (save/overwrite) answers during the session.\n• Any role: read saved answers.\n\nBoth MCQ and SHORT_ANSWER questions use the selectedAnswer field.\nFor MCQ: pass the option key (e.g. 'B').\nFor SHORT_ANSWER: pass the full text response.",
+      "item": [
+        {
+          "name": "Save Answer — MCQ (Student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionId\": \"{{questionId}}\",\n  \"selectedAnswer\": \"B\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/answers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{sessionId}}",
+                "answers"
+              ]
+            },
+            "description": "STUDENT only. Upsert — calling again with the same questionId overwrites the previous answer. For MCQ, selectedAnswer must match a valid option key."
+          }
+        },
+        {
+          "name": "Save Answer — Short Answer (Student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionId\": \"{{questionId}}\",\n  \"selectedAnswer\": \"Recursion is a technique where a function calls itself with a smaller input until a base case is reached. Each call adds a new stack frame. Stack overflow occurs if the base case is never met.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/answers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{sessionId}}",
+                "answers"
+              ]
+            },
+            "description": "STUDENT only. For SHORT_ANSWER questions, pass the full text response in selectedAnswer. Same upsert semantics as MCQ."
+          }
+        },
+        {
+          "name": "Get All Answers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/answers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{sessionId}}",
+                "answers"
+              ]
+            },
+            "description": "Session owner, assigned proctor, or admin. Returns all saved answers for the session."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Proctoring",
+      "description": "Proctoring actions scoped per session.\nAll endpoints require the caller to be either:\n  • ADMIN — must be the creator of the exam that owns the session.\n  • PROCTOR — must be assigned to that exam.\nProctors receive live WebSocket alerts on /topic/proctor/exam/{examId}/alerts.",
+      "item": [
+        {
+          "name": "Get Proctoring Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/events?page=0&size=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "proctoring",
+                "sessions",
+                "{{sessionId}}",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "ADMIN/PROCTOR (scoped). Paginated list of AI-generated and manually-flagged violation events for the session, sorted newest-first."
+          }
+        },
+        {
+          "name": "Get Violation Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "proctoring",
+                "sessions",
+                "{{sessionId}}",
+                "summary"
+              ]
+            },
+            "description": "ADMIN/PROCTOR (scoped). Aggregated violation counters: faceAway, gazeAway, mouthOpen, multipleFaces, phoneDetected, tabSwitch, copyPaste, manualFlags, AI risk score."
+          }
+        },
+        {
+          "name": "Add Manual Flag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"MANUAL_FLAG\",\n  \"description\": \"Student appeared to be reading from notes on paper.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/flag",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "proctoring",
+                "sessions",
+                "{{sessionId}}",
+                "flag"
+              ]
+            },
+            "description": "ADMIN/PROCTOR (scoped). Manually record a violation event.\nValid eventType values: MANUAL_FLAG, FACE_MISSING, MULTIPLE_FACES, PHONE_DETECTED, TAB_SWITCH, FULLSCREEN_EXIT, COPY_PASTE, NOTES_DETECTED, IDENTITY_MISMATCH."
+          }
+        },
+        {
+          "name": "Clear Proctor Flag",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/clear",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "proctoring",
+                "sessions",
+                "{{sessionId}}",
+                "clear"
+              ]
+            },
+            "description": "ADMIN/PROCTOR (scoped). Marks the most recent manual flag as a false positive."
+          }
+        },
+        {
+          "name": "Add Proctor Note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Student requested a bathroom break at 10:15 AM \\u2014 approved.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/notes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "proctoring",
+                "sessions",
+                "{{sessionId}}",
+                "notes"
+              ]
+            },
+            "description": "ADMIN/PROCTOR (scoped). Attaches a free-text note to the session's proctoring record."
+          }
+        },
+        {
+          "name": "Suspend Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Multiple faces detected repeatedly. Manual suspension by proctor.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/suspend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "proctoring",
+                "sessions",
+                "{{sessionId}}",
+                "suspend"
+              ]
+            },
+            "description": "ADMIN/PROCTOR (scoped). Suspends the student's session. Student receives WebSocket push on /queue/exam/{sessionId}/suspend. Use Reinstate Session (Sessions folder) to reverse."
+          }
+        },
+        {
+          "name": "Get Behavior Events Feed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/proctoring/sessions/{{sessionId}}/behavior-events?page=0&size=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "proctoring",
+                "sessions",
+                "{{sessionId}}",
+                "behavior-events"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "ADMIN/PROCTOR (scoped). Paginated timeline of raw browser-level events (tab switch, fullscreen exit, copy/paste, focus loss) sent by the student client, sorted newest-first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "description": "Exam and session reporting.\n• ADMIN scope: must be the creator of the exam.\n• PROCTOR scope: must be assigned to the exam.\n• STUDENT scope: students may only query their own history.",
+      "item": [
+        {
+          "name": "Get Exam Results (Admin / Assigned Proctor)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/exams/{{examId}}/results?page=0&size=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "exams",
+                "{{examId}}",
+                "results"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "ADMIN (exam creator) or assigned PROCTOR. Paginated result summary per student: score, pass/fail, AI risk score, violation count."
+          }
+        },
+        {
+          "name": "Export Exam Results CSV (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/exams/{{examId}}/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "exams",
+                "{{examId}}",
+                "export"
+              ]
+            },
+            "description": "ADMIN only (exam creator). Downloads all student results as a CSV file. Response Content-Type: text/csv."
+          }
+        },
+        {
+          "name": "Get Full Session Report (Admin / Assigned Proctor)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/sessions/{{sessionId}}/full",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "sessions",
+                "{{sessionId}}",
+                "full"
+              ]
+            },
+            "description": "ADMIN (exam creator) or assigned PROCTOR. Full session breakdown: score summary + all answers + proctoring event timeline + violation summary."
+          }
+        },
+        {
+          "name": "Get Student History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/students/{{userId}}/history?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "students",
+                "{{userId}}",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "ADMIN, PROCTOR, or STUDENT. Students may only query their own userId. Paginated exam history with score and pass/fail per session."
+          }
+        }
+      ]
+    }
+  ]
 }
