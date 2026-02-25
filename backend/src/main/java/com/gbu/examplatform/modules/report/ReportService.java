@@ -4,6 +4,7 @@ import com.gbu.examplatform.exception.ResourceNotFoundException;
 import com.gbu.examplatform.modules.answer.Answer;
 import com.gbu.examplatform.modules.answer.AnswerRepository;
 import com.gbu.examplatform.modules.exam.ExamRepository;
+import com.gbu.examplatform.modules.exam.ExamService;
 import com.gbu.examplatform.modules.proctoring.ExamProctorService;
 import com.gbu.examplatform.modules.proctoring.ProctoringEvent;
 import com.gbu.examplatform.modules.proctoring.ProctoringEventRepository;
@@ -40,6 +41,7 @@ public class ReportService {
     private final ViolationSummaryRepository violationSummaryRepository;
     private final SecurityUtils securityUtils;
     private final ExamProctorService examProctorService;
+    private final ExamService examService;
 
     // -----------------------------------------------------------------------
     // Exam Results
@@ -51,6 +53,7 @@ public class ReportService {
         examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
         examProctorService.requireProctorScopeForExam(examId);
+        examService.requireAdminOwnership(examId);
         Page<ExamSession> page = sessionRepository.findByExamId(examId, pageable);
         // Bulk-fetch summaries for the whole page in a single query (Issue 19)
         Map<UUID, ViolationSummary> vsMap = buildVsMap(page.getContent());
@@ -62,6 +65,7 @@ public class ReportService {
     public String exportExamResultsCsv(UUID examId) {
         examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
+        examService.requireAdminOwnership(examId);
 
         List<ExamSession> sessions = sessionRepository.findAllByExamId(examId);
         // Bulk-fetch summaries to avoid N+1 (Issue 19)
@@ -105,7 +109,9 @@ public class ReportService {
     public FullSessionReportDto getFullSessionReport(UUID sessionId) {
         ExamSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session", sessionId.toString()));
-        examProctorService.requireProctorScopeForExam(session.getEnrollment().getExam().getId());
+        UUID examId = session.getEnrollment().getExam().getId();
+        examProctorService.requireProctorScopeForExam(examId);
+        examService.requireAdminOwnership(examId);
 
         List<Answer> answers = answerRepository.findBySessionId(sessionId);
         List<ProctoringEvent> events = proctoringEventRepository

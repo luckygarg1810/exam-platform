@@ -5,6 +5,7 @@ import com.gbu.examplatform.exception.ResourceNotFoundException;
 import com.gbu.examplatform.exception.UnauthorizedAccessException;
 import com.gbu.examplatform.modules.exam.Exam;
 import com.gbu.examplatform.modules.exam.ExamRepository;
+import com.gbu.examplatform.modules.exam.ExamService;
 import com.gbu.examplatform.modules.user.User;
 import com.gbu.examplatform.modules.user.UserRepository;
 import com.gbu.examplatform.security.SecurityUtils;
@@ -35,6 +36,7 @@ public class ExamProctorService {
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
     private final SecurityUtils securityUtils;
+    private final ExamService examService;
 
     /**
      * Throws UnauthorizedAccessException if the current user is a PROCTOR who is
@@ -56,6 +58,7 @@ public class ExamProctorService {
     @Transactional
     public ExamProctorDto assignProctor(UUID examId, UUID proctorId) {
         Exam exam = findExam(examId);
+        examService.requireAdminOwnership(exam);
         User proctor = findProctor(proctorId);
 
         if (examProctorRepository.existsByExamIdAndProctorId(examId, proctorId)) {
@@ -87,6 +90,7 @@ public class ExamProctorService {
 
     @Transactional
     public void unassignProctor(UUID examId, UUID proctorId) {
+        examService.requireAdminOwnership(examId);
         if (!examProctorRepository.existsByExamIdAndProctorId(examId, proctorId)) {
             throw new ResourceNotFoundException("ExamProctor",
                     "examId=" + examId + ", proctorId=" + proctorId);
@@ -99,14 +103,22 @@ public class ExamProctorService {
     @Transactional(readOnly = true)
     public List<ExamProctorDto> getProctorsForExam(UUID examId) {
         findExam(examId); // validate exam exists
+        examService.requireAdminOwnership(examId); // admins only see their own exam's proctors
         return examProctorRepository.findByExamId(examId)
                 .stream().map(this::toDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<ExamProctorDto> getExamsForProctor(UUID proctorId) {
+        // Admins may only see proctor assignments on exams they created
+        UUID currentAdminId = securityUtils.isAdmin() ? securityUtils.getCurrentUserId() : null;
         return examProctorRepository.findByProctorId(proctorId)
-                .stream().map(this::toDto).toList();
+                .stream()
+                .filter(ep -> currentAdminId == null
+                        || (ep.getExam().getCreatedBy() != null
+                                && currentAdminId.equals(ep.getExam().getCreatedBy().getId())))
+                .map(this::toDto)
+                .toList();
     }
 
     // ── Access helper (used by other services) ────────────────────────────────

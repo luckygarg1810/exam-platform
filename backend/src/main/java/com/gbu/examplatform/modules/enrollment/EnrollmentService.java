@@ -4,6 +4,7 @@ import com.gbu.examplatform.exception.BusinessException;
 import com.gbu.examplatform.exception.ResourceNotFoundException;
 import com.gbu.examplatform.modules.exam.Exam;
 import com.gbu.examplatform.modules.exam.ExamRepository;
+import com.gbu.examplatform.modules.exam.ExamService;
 import com.gbu.examplatform.modules.session.ExamSessionRepository;
 import com.gbu.examplatform.modules.user.User;
 import com.gbu.examplatform.modules.user.UserRepository;
@@ -34,12 +35,14 @@ public class EnrollmentService {
     private final UserRepository userRepository;
     private final ExamSessionRepository sessionRepository;
     private final SecurityUtils securityUtils;
+    private final ExamService examService;
 
     // ── Admin: enroll a single student ──────────────────────────────────────
 
     @Transactional
     public EnrollmentDto adminEnroll(UUID examId, UUID userId) {
         Exam exam = findPublishableExam(examId);
+        examService.requireAdminOwnership(exam);
         User user = findStudent(userId);
 
         if (enrollmentRepository.existsByExamIdAndUserId(examId, userId)) {
@@ -66,6 +69,7 @@ public class EnrollmentService {
     @Transactional
     public BulkEnrollResult adminBulkEnroll(UUID examId, List<UUID> userIds) {
         Exam exam = findPublishableExam(examId);
+        examService.requireAdminOwnership(exam);
 
         List<String> errors = new ArrayList<>();
         int successCount = 0;
@@ -106,6 +110,7 @@ public class EnrollmentService {
 
     @Transactional
     public void adminUnenroll(UUID examId, UUID userId) {
+        examService.requireAdminOwnership(examId);
         ExamEnrollment enrollment = enrollmentRepository.findByExamIdAndUserId(examId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enrollment",
                         "examId=" + examId + ", userId=" + userId));
@@ -154,6 +159,7 @@ public class EnrollmentService {
 
     @Transactional(readOnly = true)
     public Page<EnrollmentDto> getEnrollments(UUID examId, Pageable pageable) {
+        examService.requireAdminOwnership(examId); // admins can only view their own exam's enrollments
         return enrollmentRepository.findEnrollmentsByExam(examId, pageable)
                 .map(this::toDto);
     }

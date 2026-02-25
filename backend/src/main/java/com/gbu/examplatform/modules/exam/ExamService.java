@@ -2,6 +2,7 @@ package com.gbu.examplatform.modules.exam;
 
 import com.gbu.examplatform.exception.BusinessException;
 import com.gbu.examplatform.exception.ResourceNotFoundException;
+import com.gbu.examplatform.exception.UnauthorizedAccessException;
 import com.gbu.examplatform.modules.exam.dto.*;
 import com.gbu.examplatform.modules.user.User;
 import com.gbu.examplatform.modules.user.UserRepository;
@@ -65,8 +66,9 @@ public class ExamService {
 
         Page<Exam> page;
         if ("ADMIN".equals(role)) {
-            // Admin sees all non-deleted exams regardless of status
-            page = examRepository.findByIsDeletedFalse(pageable);
+            // Admin sees only their own non-deleted exams
+            UUID adminId = securityUtils.getCurrentUserId();
+            page = examRepository.findByCreatedBy_IdAndIsDeletedFalse(adminId, pageable);
         } else if ("PROCTOR".equals(role)) {
             // Proctor sees only exams they have been assigned to
             UUID proctorId = securityUtils.getCurrentUserId();
@@ -100,6 +102,7 @@ public class ExamService {
     @Transactional
     public ExamDto updateExam(UUID examId, CreateExamRequest request) {
         Exam exam = findExamById(examId);
+        requireAdminOwnership(exam);
 
         if (exam.getStatus() != Exam.ExamStatus.DRAFT) {
             throw new BusinessException("Can only edit exams in DRAFT status");
@@ -142,6 +145,7 @@ public class ExamService {
     @Transactional
     public void deleteExam(UUID examId) {
         Exam exam = findExamById(examId);
+        requireAdminOwnership(exam);
         if (exam.getStatus() == Exam.ExamStatus.ONGOING) {
             throw new BusinessException("Cannot delete an ongoing exam");
         }
@@ -152,6 +156,7 @@ public class ExamService {
     @Transactional
     public ExamDto publishExam(UUID examId) {
         Exam exam = findExamById(examId);
+        requireAdminOwnership(exam);
 
         if (exam.getStatus() != Exam.ExamStatus.DRAFT) {
             throw new BusinessException("Only DRAFT exams can be published");
@@ -185,6 +190,33 @@ public class ExamService {
             throw new ResourceNotFoundException("Exam", examId.toString());
         }
         return exam;
+    }
+
+    /**
+     * Throws UnauthorizedAccessException if the current ADMIN user is not the
+     * creator of the given exam. No-op for non-admin roles.
+     * Pass an already-loaded Exam to avoid an extra DB round-trip.
+     */
+    public void requireAdminOwnership(Exam exam) {
+        if (!securityUtils.isAdmin())
+            return;
+        UUID currentAdminId = securityUtils.getCurrentUserId();
+        if (exam.getCreatedBy() == null || !currentAdminId.equals(exam.getCreatedBy().getId())) {
+            throw new UnauthorizedAccessException(
+                    "You are not the creator of this exam");
+        }
+    }
+
+    /**
+     * Convenience overload — loads the exam then delegates.
+     * Use when calling from external services that only hold the examId.
+     */
+    public void requireAdminOwnership(UUID examId) {
+        if (!securityUtils.isAdmin())
+            return;
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
+        requireAdminOwnership(exam);
     }
 
     // -------------------------------------------------------------------------

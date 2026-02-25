@@ -17,6 +17,9 @@ public interface ExamRepository extends JpaRepository<Exam, UUID> {
 
         Page<Exam> findByIsDeletedFalse(Pageable pageable);
 
+        /** Admin-scoped list: only exams created by this admin. */
+        Page<Exam> findByCreatedBy_IdAndIsDeletedFalse(UUID createdById, Pageable pageable);
+
         Page<Exam> findByStatusInAndIsDeletedFalse(List<Exam.ExamStatus> statuses, Pageable pageable);
 
         List<Exam> findByStatusAndStartTimeBeforeAndIsDeletedFalse(Exam.ExamStatus status, Instant time);

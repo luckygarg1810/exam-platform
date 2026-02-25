@@ -4,6 +4,7 @@ import com.gbu.examplatform.exception.BusinessException;
 import com.gbu.examplatform.exception.ResourceNotFoundException;
 import com.gbu.examplatform.modules.exam.Exam;
 import com.gbu.examplatform.modules.exam.ExamRepository;
+import com.gbu.examplatform.modules.exam.ExamService;
 import com.gbu.examplatform.modules.question.dto.*;
 import com.gbu.examplatform.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -26,10 +27,12 @@ public class QuestionService {
     private final ExamRepository examRepository;
     private final SecurityUtils securityUtils;
     private final RedisTemplate<String, String> redisTemplate;
+    private final ExamService examService;
 
     @Transactional
     public QuestionDto createQuestion(UUID examId, CreateQuestionRequest request) {
         Exam exam = findExam(examId);
+        examService.requireAdminOwnership(exam);
 
         // Reject mutations to live exams — matches the guard on
         // updateQuestion/deleteQuestion (Issue 46)
@@ -113,6 +116,7 @@ public class QuestionService {
     @Transactional
     public QuestionDto updateQuestion(UUID examId, UUID questionId, CreateQuestionRequest request) {
         Exam exam = findExam(examId);
+        examService.requireAdminOwnership(exam);
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", questionId.toString()));
 
@@ -143,6 +147,7 @@ public class QuestionService {
     @Transactional
     public void deleteQuestion(UUID examId, UUID questionId) {
         Exam exam = findExam(examId);
+        examService.requireAdminOwnership(exam);
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", questionId.toString()));
 
