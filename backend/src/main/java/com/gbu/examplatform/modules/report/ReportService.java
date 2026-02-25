@@ -4,6 +4,7 @@ import com.gbu.examplatform.exception.ResourceNotFoundException;
 import com.gbu.examplatform.modules.answer.Answer;
 import com.gbu.examplatform.modules.answer.AnswerRepository;
 import com.gbu.examplatform.modules.exam.ExamRepository;
+import com.gbu.examplatform.modules.proctoring.ExamProctorService;
 import com.gbu.examplatform.modules.proctoring.ProctoringEvent;
 import com.gbu.examplatform.modules.proctoring.ProctoringEventRepository;
 import com.gbu.examplatform.modules.proctoring.ViolationSummary;
@@ -38,6 +39,7 @@ public class ReportService {
     private final ProctoringEventRepository proctoringEventRepository;
     private final ViolationSummaryRepository violationSummaryRepository;
     private final SecurityUtils securityUtils;
+    private final ExamProctorService examProctorService;
 
     // -----------------------------------------------------------------------
     // Exam Results
@@ -48,6 +50,7 @@ public class ReportService {
     public Page<SessionResultDto> getExamResults(UUID examId, Pageable pageable) {
         examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
+        examProctorService.requireProctorScopeForExam(examId);
         Page<ExamSession> page = sessionRepository.findByExamId(examId, pageable);
         // Bulk-fetch summaries for the whole page in a single query (Issue 19)
         Map<UUID, ViolationSummary> vsMap = buildVsMap(page.getContent());
@@ -102,6 +105,7 @@ public class ReportService {
     public FullSessionReportDto getFullSessionReport(UUID sessionId) {
         ExamSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session", sessionId.toString()));
+        examProctorService.requireProctorScopeForExam(session.getEnrollment().getExam().getId());
 
         List<Answer> answers = answerRepository.findBySessionId(sessionId);
         List<ProctoringEvent> events = proctoringEventRepository

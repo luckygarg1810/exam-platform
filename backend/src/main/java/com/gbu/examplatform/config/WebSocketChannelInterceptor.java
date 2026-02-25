@@ -1,6 +1,7 @@
 package com.gbu.examplatform.config;
 
 import com.gbu.examplatform.modules.auth.RefreshTokenService;
+import com.gbu.examplatform.modules.proctoring.ExamProctorRepository;
 import com.gbu.examplatform.modules.session.ExamSessionRepository;
 import com.gbu.examplatform.security.AuthenticatedUser;
 import com.gbu.examplatform.security.JwtTokenProvider;
@@ -40,10 +41,12 @@ import java.util.regex.Pattern;
 public class WebSocketChannelInterceptor implements ChannelInterceptor {
 
     private static final Pattern SESSION_DEST = Pattern.compile("^/queue/exam/([^/]+)/");
+    private static final Pattern EXAM_ALERT_DEST = Pattern.compile("^/topic/proctor/exam/([^/]+)/");
 
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
     private final ExamSessionRepository sessionRepository;
+    private final ExamProctorRepository examProctorRepository;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -147,12 +150,47 @@ public class WebSocketChannelInterceptor implements ChannelInterceptor {
             return;
         }
 
-        // /topic/proctor/** — PROCTOR or ADMIN only
+        // /topic/proctor/exam/{examId}/** — assigned proctors and admins only
+        Matcher examMatcher = EXAM_ALERT_DEST.matcher(destination);
+        if (examMatcher.find()) {
+            String role = principal.getRole();
+            if (!"PROCTOR".equals(role) && !"ADMIN".equals(role)) {
+                log.warn("SUBSCRIBE rejected: role {} cannot subscribe to {}", role, destination);
+                throw new IllegalArgumentException("Only proctors and admins may subscribe to exam alert topics");
+            }
+            // Proctors must be assigned to the specific exam
+            if ("PROCTOR".equals(role)) {
+                try {
+                    UUID examId = UUID.fromString(examMatcher.group(1));
+                    UUID proctorId = UUID.fromString(principal.getId());
+                    if (!examProctorRepository.isProctorForExam(examId, proctorId)) {
+                        log.warn("SUBSCRIBE rejected: proctor {} not assigned to exam {}", proctorId, examId);
+                        throw new IllegalArgumentException("You are not assigned as a proctor for this exam");
+                    }
+                } catch (IllegalArgumentException e) {
+                    throw e;
+                } catch (Exception e) {
+                    log.error("Exam-alert subscription check error: {}", e.getMessage());
+                    throw new IllegalArgumentException("Subscription authorization failed");
+                }
+            }
+            return;
+        }
+
+        // /topic/proctor/** (other sub-paths) — PROCTOR or ADMIN only
         if (destination.startsWith("/topic/proctor/")) {
             String role = principal.getRole();
             if (!"PROCTOR".equals(role) && !"ADMIN".equals(role)) {
                 log.warn("SUBSCRIBE rejected: role {} cannot subscribe to {}", role, destination);
                 throw new IllegalArgumentException("Only proctors and admins may subscribe to proctor topics");
+            }
+        }
+
+        // /topic/admin/** — ADMIN only
+        if (destination.startsWith("/topic/admin/")) {
+            if (!"ADMIN".equals(principal.getRole())) {
+                log.warn("SUBSCRIBE rejected: role {} cannot subscribe to {}", principal.getRole(), destination);
+                throw new IllegalArgumentException("Only admins may subscribe to admin topics");
             }
         }
     }

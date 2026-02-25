@@ -155,10 +155,30 @@ public class ProctoringResultConsumer {
         violationSummaryRepository.save(summary);
 
         // ----------------------------------------------------------------
-        // 3. Push real-time alert to proctors for all events
+        // 3. Push scoped real-time alert to assigned proctors of this exam
         // ----------------------------------------------------------------
-        notificationService.broadcastProctorAlert(sessionId, eventType.name(), severity.name(),
+        UUID examId = session.getEnrollment().getExam().getId();
+        notificationService.broadcastExamAlert(examId, sessionId, eventType.name(), severity.name(),
                 confidence, description);
+
+        // Push a live summary snapshot so the proctor dashboard table updates
+        // without requiring a manual refresh (resolves Issue 24).
+        java.util.Map<String, Object> summaryUpdate = new java.util.HashMap<>();
+        summaryUpdate.put("type", "VIOLATION_UPDATE");
+        summaryUpdate.put("sessionId", sessionId.toString());
+        summaryUpdate.put("examId", examId.toString());
+        summaryUpdate.put("eventType", eventType.name());
+        summaryUpdate.put("severity", severity.name());
+        summaryUpdate.put("riskScore", summary.getRiskScore());
+        summaryUpdate.put("faceAway", summary.getFaceAwayCount());
+        summaryUpdate.put("gazeAway", summary.getGazeAwayCount());
+        summaryUpdate.put("mouthOpen", summary.getMouthOpenCount());
+        summaryUpdate.put("multipleFaces", summary.getMultipleFaceCount());
+        summaryUpdate.put("phoneDetected", summary.getPhoneDetectedCount());
+        summaryUpdate.put("tabSwitch", summary.getTabSwitchCount());
+        summaryUpdate.put("copyPaste", summary.getCopyPasteCount());
+        summaryUpdate.put("timestamp", java.time.Instant.now().toString());
+        notificationService.sendSessionUpdate(sessionId, summaryUpdate);
 
         // ----------------------------------------------------------------
         // 4. Warn student for HIGH violations

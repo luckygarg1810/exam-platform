@@ -235,8 +235,9 @@ public class ExamSessionService {
         // Notify student via WebSocket — locks the exam UI
         notificationService.sendSuspension(sessionId, reason);
 
-        // Broadcast suspension to proctors
-        notificationService.broadcastProctorAlert(sessionId, "MANUAL_FLAG", "CRITICAL",
+        // Broadcast suspension alert scoped to the exam's assigned proctors
+        UUID examId = session.getEnrollment().getExam().getId();
+        notificationService.broadcastExamAlert(examId, sessionId, "MANUAL_FLAG", "CRITICAL",
                 1.0, "Session suspended: " + reason);
 
         // Push per-session live update so monitoring proctors react immediately (Issue
@@ -272,6 +273,7 @@ public class ExamSessionService {
     @Transactional
     public SessionDto reinstateSession(UUID sessionId, String reason) {
         ExamSession session = findSession(sessionId);
+        validateAccess(session); // proctor must be assigned to this exam
 
         if (!Boolean.TRUE.equals(session.getIsSuspended())) {
             throw new BusinessException("Session is not suspended");
@@ -323,8 +325,8 @@ public class ExamSessionService {
                 "suspendedMinutes", suspendedDuration.toMinutes(),
                 "timestamp", now.toString()));
 
-        // Broadcast to proctors
-        notificationService.broadcastProctorAlert(sessionId, "MANUAL_FLAG", "LOW",
+        // Broadcast reinstatement alert scoped to the exam's assigned proctors
+        notificationService.broadcastExamAlert(exam.getId(), sessionId, "MANUAL_FLAG", "LOW",
                 0.0, "Session reinstated. Extended deadline: " + extendedEndAt
                         + (reason != null ? ". Reason: " + reason : ""));
 

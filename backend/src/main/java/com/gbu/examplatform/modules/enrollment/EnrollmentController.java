@@ -1,5 +1,6 @@
 package com.gbu.examplatform.modules.enrollment;
 
+import com.gbu.examplatform.modules.proctoring.ExamProctorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class EnrollmentController {
 
     private final EnrollmentService enrollmentService;
+    private final ExamProctorService examProctorService;
 
     /**
      * Admin enrolls a single student in an exam.
@@ -71,6 +73,7 @@ public class EnrollmentController {
             @PathVariable UUID examId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+        examProctorService.requireProctorScopeForExam(examId); // proctor must be assigned
         Pageable pageable = PageRequest.of(page, size, Sort.by("enrolledAt").descending());
         return ResponseEntity.ok(enrollmentService.getEnrollments(examId, pageable));
     }
