@@ -1,15 +1,21 @@
-# ─── Base image ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# Base image
+# ─────────────────────────────────────────────────────────────
 FROM python:3.11-slim
 
-# ─── System dependencies ─────────────────────────────────────────────────────
-# • cmake + build-essential → compile dlib (face_recognition)
-# • ffmpeg                  → pydub audio conversion
-# • libglib2.0-0, libgomp1  → OpenCV / MediaPipe shared libs
-# • libsm6, libxext6        → OpenCV headless display shim (not actually displayed)
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# ─────────────────────────────────────────────────────────────
+# System dependencies (cached aggressively)
+#
+# Removed: libboost-all-dev  — dlib 19.24+ does NOT require Boost on Linux.
+#          Removing it saves ~500 MB of apt downloads (~5-10 min).
+# ─────────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
         cmake \
         build-essential \
-        libboost-all-dev \
         ffmpeg \
         libglib2.0-0 \
         libgomp1 \
@@ -18,30 +24,57 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
-# ─── Working directory ───────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# Workdir
+# ─────────────────────────────────────────────────────────────
 WORKDIR /app
 
-# ─── Python dependencies ─────────────────────────────────────────────────────
-# Copy requirements first to exploit Docker layer caching
+# ─────────────────────────────────────────────────────────────
+# Python deps (MAX CACHE HIT)
+#
+# dlib is installed in its own layer BEFORE the rest of requirements.txt.
+# This means:
+#   - A change to any other requirement does NOT trigger a dlib recompile.
+#   - The pip cache mount persists the compiled .whl between builds on the
+#     same machine, so subsequent builds reuse the cached wheel instantly.
+# ─────────────────────────────────────────────────────────────
 COPY requirements.txt .
 
-# Upgrade pip, install wheel, then install project deps
-RUN pip install --upgrade pip wheel \
-    && pip install --no-cache-dir -r requirements.txt
+# Step 1: install dlib alone (C++ compile — slow first time, cached after).
+# CMAKE_BUILD_PARALLEL_LEVEL and MAKEFLAGS are set inline (not in ENV) because
+# ENV does not support shell command substitution — $(nproc) would be treated
+# as a literal string there.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip wheel \
+    && CMAKE_BUILD_PARALLEL_LEVEL=$(nproc) MAKEFLAGS="-j$(nproc)" \
+       pip install "dlib==19.24.4"
 
-# ─── Application code ────────────────────────────────────────────────────────
+# Step 2: install everything else (fast — all pure Python or pre-built wheels)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
+
+# ─────────────────────────────────────────────────────────────
+# Pre-download ML models (before app code)
+# ─────────────────────────────────────────────────────────────
+RUN --mount=type=cache,target=/root/.cache/ultralytics \
+    python - <<EOF
+from ultralytics import YOLO
+YOLO("yolov8n.pt")
+EOF
+
+# ─────────────────────────────────────────────────────────────
+# App code (changes often → last)
+# ─────────────────────────────────────────────────────────────
 COPY . .
 
-# ─── Pre-download / pre-build artefacts (optional cache warm-up) ─────────────
-# YOLOv8n weights are downloaded on first use; pre-download to avoid
-# container startup delays.  Comment out if offline / air-gapped.
-RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')" 2>/dev/null || true
-
-# ─── Models directory (for persisted XGBoost model) ──────────────────────────
+# ─────────────────────────────────────────────────────────────
+# Persistent directories
+# ─────────────────────────────────────────────────────────────
 RUN mkdir -p /app/models
 
-# ─── Expose HTTP port ─────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# Expose & run
+# ─────────────────────────────────────────────────────────────
 EXPOSE 8001
 
-# ─── Entrypoint ──────────────────────────────────────────────────────────────
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

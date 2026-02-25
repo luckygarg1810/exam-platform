@@ -65,6 +65,24 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, UUID> 
         @Query("SELECT s FROM ExamSession s WHERE s.enrollment.user.id = :userId ORDER BY s.startedAt DESC")
         Page<ExamSession> findPageByUserId(@Param("userId") UUID userId, Pageable pageable);
 
+        /**
+         * Sessions whose proctor-granted extension deadline has expired but have not
+         * yet been submitted. Used by the scheduler to auto-submit reinstated students
+         * when their extended time window closes.
+         */
+        @Query("SELECT s FROM ExamSession s WHERE s.extendedEndAt IS NOT NULL " +
+                        "AND s.extendedEndAt < :now AND s.submittedAt IS NULL AND s.isSuspended = false")
+        List<ExamSession> findSessionsWithExpiredExtension(@Param("now") Instant now);
+
+        // Active sessions scoped to a proctor's assigned exams (for proctor dashboard)
+        @Query("SELECT s FROM ExamSession s WHERE s.submittedAt IS NULL " +
+                        "AND s.isSuspended = false AND s.lastHeartbeatAt > :recentCutoff " +
+                        "AND s.enrollment.exam.id IN :examIds")
+        Page<ExamSession> findActiveSessionsByExamIds(
+                        @Param("recentCutoff") Instant recentCutoff,
+                        @Param("examIds") List<UUID> examIds,
+                        Pageable pageable);
+
         // Ownership check: used by WebSocket handlers to verify a student owns a
         // session
         @Query("SELECT COUNT(s) FROM ExamSession s WHERE s.id = :id AND s.enrollment.user.id = :userId")

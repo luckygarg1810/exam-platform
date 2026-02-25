@@ -65,9 +65,14 @@ public class ExamService {
 
         Page<Exam> page;
         if ("ADMIN".equals(role)) {
+            // Admin sees all non-deleted exams regardless of status
             page = examRepository.findByIsDeletedFalse(pageable);
+        } else if ("PROCTOR".equals(role)) {
+            // Proctor sees only exams they have been assigned to
+            UUID proctorId = securityUtils.getCurrentUserId();
+            page = examRepository.findByAssignedProctor(proctorId, pageable);
         } else {
-            // Student sees PUBLISHED + ONGOING exams they're enrolled in or available
+            // Student sees only exams they are enrolled in (admin-assigned)
             List<Exam.ExamStatus> studentStatuses = List.of(
                     Exam.ExamStatus.PUBLISHED, Exam.ExamStatus.ONGOING, Exam.ExamStatus.COMPLETED);
             UUID userId = securityUtils.getCurrentUserId();

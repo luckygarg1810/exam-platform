@@ -7,6 +7,7 @@ import com.gbu.examplatform.modules.session.ExamSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Consumes AI analysis results from the proctoring.results queue.
@@ -44,11 +46,32 @@ public class ProctoringResultConsumer {
     private static final double HIGH_RISK_THRESHOLD = 0.75;
     private static final double CRITICAL_THRESHOLD = 0.90;
 
+    /**
+     * Rolling time window for suspension decisions.
+     * We track every frame that arrives in the last WINDOW_SECONDS seconds.
+     * If at least MIN_FRAMES_IN_WINDOW frames have been received AND the
+     * fraction that are CRITICAL exceeds CRITICAL_RATIO_THRESHOLD, the session
+     * is auto-suspended.
+     *
+     * This is more robust than a consecutive-streak counter because dropped or
+     * delayed frames (network jitter) no longer reset the decision — a student
+     * who is consistently cheating will accumulate CRITICAL frames in the window
+     * even if a few frames are lost or arrive late.
+     */
+    private static final long WINDOW_SECONDS = 30L; // rolling window width
+    private static final long WINDOW_TTL_SECONDS = 90L; // Redis key TTL (3× window)
+    private static final int MIN_FRAMES_IN_WINDOW = 5; // cold-start guard
+    private static final double CRITICAL_RATIO_THRESHOLD = 0.70; // 70 % of frames must be CRITICAL
+
+    private static final String RISK_FRAMES_KEY_PREFIX = "session:risk:frames:";
+    private static final String RISK_CRITICAL_KEY_PREFIX = "session:risk:critical:";
+
     private final ProctoringEventRepository proctoringEventRepository;
     private final ViolationSummaryRepository violationSummaryRepository;
     private final ExamSessionRepository sessionRepository;
     private final ExamSessionService sessionService;
     private final NotificationService notificationService;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @RabbitListener(queues = "#{T(com.gbu.examplatform.config.RabbitMQConfig).PROCTORING_RESULTS_QUEUE}")
     @Transactional
@@ -146,16 +169,73 @@ public class ProctoringResultConsumer {
         }
 
         // ----------------------------------------------------------------
-        // 5. Auto-suspend on CRITICAL risk score (> 90%)
+        // 5. Time-window-based auto-suspend on CRITICAL risk score (> 90%)
+        //
+        // Instead of counting only *consecutive* critical frames (which resets
+        // on every clean/dropped frame), we maintain two Redis ZSETs:
+        // session:risk:frames:<id> — one member per frame, scored by epoch-ms
+        // session:risk:critical:<id> — same but only for CRITICAL frames
+        //
+        // On each frame we:
+        // 1. Add the frame to both ZSETs as appropriate.
+        // 2. Prune members older than WINDOW_SECONDS.
+        // 3. If total frames ≥ MIN_FRAMES_IN_WINDOW AND
+        // critical / total ≥ CRITICAL_RATIO_THRESHOLD → suspend.
+        //
+        // Network jitter (dropped/delayed frames) no longer prevents suspension
+        // because we measure a ratio over time, not a strict consecutive count.
         // ----------------------------------------------------------------
+        long nowMs = System.currentTimeMillis();
+        double windowStartMs = (double) (nowMs - WINDOW_SECONDS * 1000L);
+        String frameMember = UUID.randomUUID().toString(); // unique per frame
+        String framesKey = RISK_FRAMES_KEY_PREFIX + sessionId;
+        String criticalKey = RISK_CRITICAL_KEY_PREFIX + sessionId;
+
+        // Record this frame in the all-frames ZSET
+        redisTemplate.opsForZSet().add(framesKey, frameMember, (double) nowMs);
+
+        // Record in the critical ZSET only if this frame is truly CRITICAL
         if (riskScore != null && riskScore > CRITICAL_THRESHOLD) {
-            log.warn("Auto-suspending session {} — risk score {}", sessionId, riskScore);
+            redisTemplate.opsForZSet().add(criticalKey, frameMember, (double) nowMs);
+        }
+
+        // Prune entries that have aged out of the rolling window
+        redisTemplate.opsForZSet().removeRangeByScore(framesKey, Double.NEGATIVE_INFINITY, windowStartMs);
+        redisTemplate.opsForZSet().removeRangeByScore(criticalKey, Double.NEGATIVE_INFINITY, windowStartMs);
+
+        // Refresh TTL so idle-session keys don't linger indefinitely
+        redisTemplate.expire(framesKey, WINDOW_TTL_SECONDS, TimeUnit.SECONDS);
+        redisTemplate.expire(criticalKey, WINDOW_TTL_SECONDS, TimeUnit.SECONDS);
+
+        // Evaluate suspension threshold
+        Long totalFrames = redisTemplate.opsForZSet().zCard(framesKey);
+        Long criticalFrames = redisTemplate.opsForZSet().zCard(criticalKey);
+
+        if (totalFrames != null && criticalFrames != null
+                && totalFrames >= MIN_FRAMES_IN_WINDOW
+                && (double) criticalFrames / totalFrames >= CRITICAL_RATIO_THRESHOLD) {
+
+            // Clean up Redis before suspending so a re-queued message cannot
+            // trigger a second suspension for the same session
+            redisTemplate.delete(framesKey);
+            redisTemplate.delete(criticalKey);
+
+            int pct = (int) Math.round((double) criticalFrames / totalFrames * 100);
+            log.warn("Auto-suspending session {} — {}/{} CRITICAL frames in last {}s ({}%)",
+                    sessionId, criticalFrames, totalFrames, WINDOW_SECONDS, pct);
             try {
                 sessionService.suspendSession(sessionId,
-                        "Auto-suspended: AI risk score " + String.format("%.0f%%", riskScore * 100));
+                        String.format("Auto-suspended: %d/%d critical AI frames in last %ds (%d%%)",
+                                criticalFrames, totalFrames, WINDOW_SECONDS, pct));
             } catch (Exception e) {
                 log.error("Failed to auto-suspend session {}: {}", sessionId, e.getMessage());
             }
+        } else {
+            log.debug("Session {} window: {}/{} critical frames in last {}s",
+                    sessionId,
+                    criticalFrames != null ? criticalFrames : 0,
+                    totalFrames != null ? totalFrames : 0,
+                    WINDOW_SECONDS);
         }
     }
 

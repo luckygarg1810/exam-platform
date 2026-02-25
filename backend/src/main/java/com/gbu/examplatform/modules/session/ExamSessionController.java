@@ -11,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -64,17 +63,6 @@ public class ExamSessionController {
         return ResponseEntity.ok(sessionService.getActiveSessions(pageable));
     }
 
-    @PostMapping("/{sessionId}/grade")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
-    @Operation(summary = "Manually grade a short-answer question for a submitted session")
-    public ResponseEntity<ExamSessionService.GradeResultDto> gradeShortAnswer(
-            @PathVariable UUID sessionId,
-            @RequestBody GradeRequest body) {
-        return ResponseEntity.ok(
-                sessionService.gradeShortAnswer(sessionId, body.getQuestionId(),
-                        body.getMarksAwarded(), body.getComment()));
-    }
-
     @PostMapping("/{sessionId}/verify-identity")
     @PreAuthorize("hasRole('STUDENT')")
     @Operation(summary = "Verify student identity by comparing a live selfie with the stored ID photo")
@@ -84,15 +72,23 @@ public class ExamSessionController {
         return ResponseEntity.ok(sessionService.verifyIdentity(sessionId, body.getSelfieBase64()));
     }
 
-    @Data
-    static class VerifyIdentityRequest {
-        private String selfieBase64;
+    @PostMapping("/{sessionId}/reinstate")
+    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @Operation(summary = "Reinstate a suspended session (Admin/Proctor only)")
+    public ResponseEntity<ExamSessionService.SessionDto> reinstateSession(
+            @PathVariable UUID sessionId,
+            @RequestBody(required = false) ReinstateRequest body) {
+        String reason = body != null ? body.getReason() : null;
+        return ResponseEntity.ok(sessionService.reinstateSession(sessionId, reason));
     }
 
     @Data
-    static class GradeRequest {
-        private UUID questionId;
-        private BigDecimal marksAwarded;
-        private String comment;
+    static class ReinstateRequest {
+        private String reason;
+    }
+
+    @Data
+    static class VerifyIdentityRequest {
+        private String selfieBase64;
     }
 }

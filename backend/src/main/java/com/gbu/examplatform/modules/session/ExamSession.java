@@ -62,4 +62,20 @@ public class ExamSession {
 
     @Column(name = "is_passed")
     private Boolean isPassed;
+
+    /**
+     * Timestamp when this session was suspended. Used by reinstatement logic
+     * to calculate how long the student was locked out (V19).
+     */
+    @Column(name = "suspended_at")
+    private Instant suspendedAt;
+
+    /**
+     * When the proctor reinstates a suspended session, this is set to
+     * {@code exam.endTime + suspendedDuration}, giving the student back the
+     * time they lost. The scheduler respects this deadline instead of the
+     * exam's global endTime for this session (V19).
+     */
+    @Column(name = "extended_end_at")
+    private Instant extendedEndAt;
 }

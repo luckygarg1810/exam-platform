@@ -1,14 +1,19 @@
 """
-SQLAlchemy ORM models — only the tables the AI service needs to READ from.
-The AI service does NOT write proctoring_events or violations_summary directly;
-those writes are handled by the Spring Boot ResultConsumer to avoid dual-write
-race conditions.
+SQLAlchemy ORM models.
+
+Read-only models (no write from AI service):
+  - proctoring_events, violations_summary → written by Spring Boot ResultConsumer
+    to avoid dual-write race conditions.
+
+Write models (AI service is sole writer):
+  - behavior_events → raw browser/OS event log; written here because Spring Boot
+    never sees the raw behavior queue messages.
 """
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.db.database import Base
 
@@ -54,3 +59,20 @@ class User(Base):
     id_photo_path = Column(String(512))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True))
+
+
+class BehaviorEvent(Base):
+    """
+    Mapped to behavior_events — written by BehaviorConsumer for every
+    discrete browser/OS event (TAB_SWITCH, COPY_PASTE, etc.).
+
+    This is the primary source of real-world training data for the
+    XGBoost behaviour-risk classifier.
+    """
+    __tablename__ = "behavior_events"
+
+    id         = Column(BigInteger, primary_key=True, autoincrement=True)
+    session_id = Column(UUID(as_uuid=True), nullable=False)
+    event_type = Column(String(50), nullable=False)
+    timestamp  = Column(DateTime(timezone=True), nullable=False)
+    metadata   = Column(JSONB, nullable=True)

@@ -16,6 +16,8 @@ import com.gbu.examplatform.modules.proctoring.ProctoringEvent;
 import com.gbu.examplatform.modules.proctoring.ProctoringEventRepository;
 import com.gbu.examplatform.modules.proctoring.ViolationSummary;
 import com.gbu.examplatform.modules.proctoring.ViolationSummaryRepository;
+import com.gbu.examplatform.modules.proctoring.ExamProctorService;
+import com.gbu.examplatform.exception.UnauthorizedAccessException;
 import com.gbu.examplatform.security.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.*;
@@ -56,6 +58,7 @@ public class ExamSessionService {
     private final EmailService emailService;
     private final NotificationService notificationService;
     private final RestTemplate restTemplate;
+    private final ExamProctorService examProctorService;
 
     @Value("${ai-service.base-url}")
     private String aiServiceBaseUrl;
@@ -171,6 +174,7 @@ public class ExamSessionService {
 
         // Remove from Redis
         redisTemplate.delete("session:active:" + session.getId());
+        redisTemplate.delete("session:risk:streak:" + session.getId());
 
         // Push per-session live update so monitoring proctors see submission
         // immediately (Issue 24)
@@ -215,6 +219,8 @@ public class ExamSessionService {
 
         session.setIsSuspended(true);
         session.setSuspensionReason(reason);
+        session.setSuspendedAt(Instant.now()); // record when suspension began (V19)
+        session.setIsPassed(false); // suspended students have not passed
         sessionRepository.save(session);
 
         ExamEnrollment enrollment = session.getEnrollment();
@@ -223,6 +229,8 @@ public class ExamSessionService {
 
         // Remove Redis presence key
         redisTemplate.delete("session:active:" + sessionId);
+        // Clear any pending risk-streak so a reinstated session starts fresh
+        redisTemplate.delete("session:risk:streak:" + sessionId);
 
         // Notify student via WebSocket — locks the exam UI
         notificationService.sendSuspension(sessionId, reason);
@@ -242,9 +250,100 @@ public class ExamSessionService {
         log.info("Session {} suspended: {}", sessionId, reason);
     }
 
+    /**
+     * Reinstates a suspended session, giving the student back the time they lost
+     * while suspended.
+     *
+     * <p>
+     * Rules:
+     * <ul>
+     * <li>Refuses if the exam's global end-time has already passed — the window
+     * is closed and there is nothing meaningful to reinstate into.</li>
+     * <li>Calculates {@code suspendedDuration = now - suspendedAt} and sets
+     * {@code session.extendedEndAt = exam.endTime + suspendedDuration}, so
+     * the student gets back exactly the minutes they were locked out.</li>
+     * <li>The scheduler skips sessions with a future {@code extendedEndAt} in
+     * its batch end-of-exam auto-submit and instead has a separate job that
+     * fires when each individual session's extended window expires.</li>
+     * </ul>
+     *
+     * Requires PROCTOR or ADMIN role (enforced at controller layer).
+     */
+    @Transactional
+    public SessionDto reinstateSession(UUID sessionId, String reason) {
+        ExamSession session = findSession(sessionId);
+
+        if (!Boolean.TRUE.equals(session.getIsSuspended())) {
+            throw new BusinessException("Session is not suspended");
+        }
+        if (session.getSubmittedAt() != null) {
+            throw new BusinessException("Cannot reinstate a submitted session");
+        }
+
+        Exam exam = session.getEnrollment().getExam();
+        Instant now = Instant.now();
+
+        // Block reinstatement after the exam has globally ended — there is no time
+        // left to give back even with an extension
+        if (exam.getEndTime().isBefore(now)) {
+            throw new BusinessException(
+                    "Exam has already ended. Reinstatement is not possible after the global exam end time.");
+        }
+
+        // Compute how long the student was locked out and add it to the exam end time
+        Instant suspendedAt = session.getSuspendedAt() != null
+                ? session.getSuspendedAt()
+                : session.getLastHeartbeatAt(); // fallback if suspendedAt not recorded
+        Duration suspendedDuration = Duration.between(suspendedAt, now);
+        Instant extendedEndAt = exam.getEndTime().plus(suspendedDuration);
+
+        session.setIsSuspended(false);
+        session.setSuspensionReason(null);
+        session.setSuspendedAt(null); // clear — no longer suspended
+        session.setExtendedEndAt(extendedEndAt);
+        session.setIsPassed(null); // reset — will be recalculated on submission sessionRepository.save(session);
+
+        ExamEnrollment enrollment = session.getEnrollment();
+        enrollment.setStatus(ExamEnrollment.EnrollmentStatus.ONGOING);
+        enrollmentRepository.save(enrollment);
+
+        // Restore Redis presence key (window = distance to extendedEndAt, min 5 min)
+        long windowSeconds = Math.max(300, Duration.between(now, extendedEndAt).getSeconds());
+        redisTemplate.opsForValue().set("session:active:" + sessionId, "1",
+                windowSeconds, TimeUnit.SECONDS);
+        // Clear any lingering risk streak from before suspension
+        redisTemplate.delete("session:risk:streak:" + sessionId);
+
+        // Notify student — unlocks exam UI and tells them their new deadline
+        notificationService.sendSessionUpdate(sessionId, java.util.Map.of(
+                "type", "SESSION_REINSTATED",
+                "sessionId", sessionId.toString(),
+                "reason", reason != null ? reason : "",
+                "extendedEndAt", extendedEndAt.toString(),
+                "suspendedMinutes", suspendedDuration.toMinutes(),
+                "timestamp", now.toString()));
+
+        // Broadcast to proctors
+        notificationService.broadcastProctorAlert(sessionId, "MANUAL_FLAG", "LOW",
+                0.0, "Session reinstated. Extended deadline: " + extendedEndAt
+                        + (reason != null ? ". Reason: " + reason : ""));
+
+        log.info("Session {} reinstated. Suspended for {} min. Extended end: {}. Reason: {}",
+                sessionId, suspendedDuration.toMinutes(), extendedEndAt, reason);
+        return toDto(session);
+    }
+
     @Transactional(readOnly = true)
     public Page<SessionDto> getActiveSessions(Pageable pageable) {
         Instant recentCutoff = Instant.now().minus(Duration.ofMinutes(2));
+        if (securityUtils.isProctor()) {
+            List<UUID> examIds = examProctorService.getAssignedExamIds(securityUtils.getCurrentUserId());
+            if (examIds.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            return sessionRepository.findActiveSessionsByExamIds(recentCutoff, examIds, pageable)
+                    .map(this::toDto);
+        }
         return sessionRepository.findActiveSessions(recentCutoff, pageable).map(this::toDto);
     }
 
@@ -264,7 +363,7 @@ public class ExamSessionService {
             if (question == null)
                 continue;
 
-            if (question.getType() == Question.QuestionType.MCQ && answer.getSelectedAnswer() != null) {
+            if (answer.getSelectedAnswer() != null) {
                 if (answer.getSelectedAnswer().equals(question.getCorrectAnswer())) {
                     BigDecimal awarded = BigDecimal.valueOf(question.getMarks());
                     answer.setMarksAwarded(awarded);
@@ -275,7 +374,7 @@ public class ExamSessionService {
                     total = total.subtract(neg);
                 }
             } else {
-                answer.setMarksAwarded(BigDecimal.ZERO); // Short answer: manual review
+                answer.setMarksAwarded(BigDecimal.ZERO); // no answer selected
             }
         }
 
@@ -284,12 +383,24 @@ public class ExamSessionService {
     }
 
     private void validateAccess(ExamSession session) {
-        if (!securityUtils.isAdmin() && !securityUtils.isProctor()) {
-            UUID currentUserId = securityUtils.getCurrentUserId();
-            UUID sessionUserId = session.getEnrollment().getUser().getId();
-            if (!currentUserId.equals(sessionUserId)) {
-                throw new com.gbu.examplatform.exception.UnauthorizedAccessException("Access denied");
+        if (securityUtils.isAdmin())
+            return;
+
+        if (securityUtils.isProctor()) {
+            UUID proctorId = securityUtils.getCurrentUserId();
+            UUID examId = session.getEnrollment().getExam().getId();
+            if (!examProctorService.isProctorForExam(examId, proctorId)) {
+                throw new UnauthorizedAccessException(
+                        "You are not assigned as a proctor for this exam");
             }
+            return;
+        }
+
+        // Student — can only access their own session
+        UUID currentUserId = securityUtils.getCurrentUserId();
+        UUID sessionUserId = session.getEnrollment().getUser().getId();
+        if (!currentUserId.equals(sessionUserId)) {
+            throw new UnauthorizedAccessException("Access denied");
         }
     }
 
@@ -298,75 +409,6 @@ public class ExamSessionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Session", sessionId.toString()));
     }
 
-    /**
-     * Manually awards marks for a SHORT_ANSWER question after proctor review.
-     * Recalculates and persists the session total score. (Issue 23)
-     */
-    @Transactional
-    public GradeResultDto gradeShortAnswer(UUID sessionId, UUID questionId,
-            BigDecimal marksAwarded, String comment) {
-        ExamSession session = findSession(sessionId);
-
-        if (session.getSubmittedAt() == null) {
-            throw new BusinessException("Cannot grade a session that has not been submitted yet");
-        }
-
-        Question question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Question", questionId.toString()));
-
-        if (question.getType() != Question.QuestionType.SHORT_ANSWER) {
-            throw new BusinessException("Manual grading is only allowed for SHORT_ANSWER questions");
-        }
-
-        double maxMarks = question.getMarks();
-        if (marksAwarded.compareTo(BigDecimal.ZERO) < 0
-                || marksAwarded.compareTo(BigDecimal.valueOf(maxMarks)) > 0) {
-            throw new BusinessException(
-                    "Marks awarded must be between 0 and " + maxMarks);
-        }
-
-        Answer answer = answerRepository.findBySessionIdAndQuestionId(sessionId, questionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Answer",
-                        "session=" + sessionId + "/question=" + questionId));
-
-        answer.setMarksAwarded(marksAwarded.setScale(1, java.math.RoundingMode.HALF_UP));
-        answer.setGradingComment(comment); // persist the reviewer's note (Issue 53)
-        answerRepository.save(answer);
-
-        // Recalculate total score from all answers
-        List<Answer> allAnswers = answerRepository.findBySessionId(sessionId);
-        BigDecimal total = allAnswers.stream()
-                .filter(a -> a.getMarksAwarded() != null)
-                .map(Answer::getMarksAwarded)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .max(BigDecimal.ZERO)
-                .setScale(2, java.math.RoundingMode.HALF_UP);
-
-        Exam exam = session.getEnrollment().getExam();
-        boolean passed = total.compareTo(BigDecimal.valueOf(exam.getPassingMarks())) >= 0;
-        session.setScore(total);
-        session.setIsPassed(passed);
-        sessionRepository.save(session);
-
-        log.info("Short answer graded: session={} question={} marks={} comment={}",
-                sessionId, questionId, marksAwarded, comment);
-
-        return GradeResultDto.builder()
-                .sessionId(sessionId)
-                .questionId(questionId)
-                .marksAwarded(answer.getMarksAwarded())
-                .newTotalScore(total)
-                .isPassed(passed)
-                .build();
-    }
-
-    /**
-     * Verifies the student's identity by comparing a live selfie (base64 JPEG/PNG)
-     * with the reference ID photo stored in MinIO for that user.
-     * Sets {@code session.identityVerified = true} on a successful match;
-     * records an {@link ProctoringEvent.EventType#IDENTITY_MISMATCH} event and
-     * increments the violation counter on failure. (Issue #22)
-     */
     @Transactional
     public VerifyIdentityResultDto verifyIdentity(UUID sessionId, String selfieBase64) {
         ExamSession session = findSession(sessionId);
@@ -475,6 +517,7 @@ public class ExamSessionService {
                 .identityVerified(s.getIdentityVerified())
                 .isSuspended(s.getIsSuspended())
                 .suspensionReason(s.getSuspensionReason())
+                .extendedEndAt(s.getExtendedEndAt())
                 .score(s.getScore())
                 .isPassed(s.getIsPassed())
                 .build();
@@ -494,6 +537,12 @@ public class ExamSessionService {
         private Boolean identityVerified;
         private Boolean isSuspended;
         private String suspensionReason;
+        /**
+         * Non-null only for sessions that were suspended and then reinstated.
+         * Equals exam.endTime + suspendedDuration. The frontend should use
+         * this as the countdown target instead of the global exam end time.
+         */
+        private Instant extendedEndAt;
         private BigDecimal score;
         private Boolean isPassed;
     }

@@ -10,6 +10,7 @@ import com.gbu.examplatform.modules.proctoring.ViolationSummary;
 import com.gbu.examplatform.modules.proctoring.ViolationSummaryRepository;
 import com.gbu.examplatform.modules.session.ExamSession;
 import com.gbu.examplatform.modules.session.ExamSessionRepository;
+import com.gbu.examplatform.security.SecurityUtils;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,7 @@ public class ReportService {
     private final AnswerRepository answerRepository;
     private final ProctoringEventRepository proctoringEventRepository;
     private final ViolationSummaryRepository violationSummaryRepository;
+    private final SecurityUtils securityUtils;
 
     // -----------------------------------------------------------------------
     // Exam Results
@@ -148,6 +150,10 @@ public class ReportService {
         var user = enrollment.getUser();
         var exam = enrollment.getExam();
 
+        // Proctoring-sensitive fields are only visible to admins and proctors;
+        // students receive null for these fields (privacy, issue #22 follow-up)
+        boolean isPrivileged = securityUtils.isAdmin() || securityUtils.isProctor();
+
         return SessionResultDto.builder()
                 .sessionId(s.getId())
                 .examId(exam.getId())
@@ -161,8 +167,8 @@ public class ReportService {
                 .isPassed(s.getIsPassed())
                 .enrollmentStatus(enrollment.getStatus().name())
                 .isSuspended(s.getIsSuspended())
-                .riskScore(vs != null ? vs.getRiskScore() : 0.0)
-                .proctorFlagged(vs != null && Boolean.TRUE.equals(vs.getProctorFlag()))
+                .riskScore(isPrivileged && vs != null ? vs.getRiskScore() : null)
+                .proctorFlagged(isPrivileged && vs != null ? vs.getProctorFlag() : null)
                 .startedAt(s.getStartedAt())
                 .submittedAt(s.getSubmittedAt())
                 .build();
@@ -201,6 +207,7 @@ public class ReportService {
                 .copyPasteCount(vs.getCopyPasteCount())
                 .suspiciousBehaviorCount(vs.getSuspiciousBehaviorCount())
                 .multiplePersonsCount(vs.getMultiplePersonsCount())
+                .identityMismatchCount(vs.getIdentityMismatchCount())
                 .proctorFlag(vs.getProctorFlag())
                 .proctorNote(vs.getProctorNote())
                 .lastUpdatedAt(vs.getLastUpdatedAt())
@@ -211,7 +218,6 @@ public class ReportService {
         return AnswerSummaryDto.builder()
                 .questionId(a.getQuestionId())
                 .selectedAnswer(a.getSelectedAnswer())
-                .textAnswer(a.getTextAnswer())
                 .marksAwarded(a.getMarksAwarded())
                 .build();
     }
@@ -239,7 +245,9 @@ public class ReportService {
         private Boolean isPassed;
         private String enrollmentStatus;
         private Boolean isSuspended;
+        /** Null for students; populated only for ADMIN/PROCTOR callers. */
         private Double riskScore;
+        /** Null for students; populated only for ADMIN/PROCTOR callers. */
         private Boolean proctorFlagged;
         private Instant startedAt;
         private Instant submittedAt;
@@ -250,7 +258,6 @@ public class ReportService {
     public static class AnswerSummaryDto {
         private UUID questionId;
         private String selectedAnswer;
-        private String textAnswer;
         private BigDecimal marksAwarded;
     }
 
@@ -296,6 +303,7 @@ public class ReportService {
         private Integer copyPasteCount;
         private Integer suspiciousBehaviorCount;
         private Integer multiplePersonsCount;
+        private Integer identityMismatchCount;
         private Boolean proctorFlag;
         private String proctorNote;
         private Instant lastUpdatedAt;

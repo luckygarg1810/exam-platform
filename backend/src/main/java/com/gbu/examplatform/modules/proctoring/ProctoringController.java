@@ -1,6 +1,9 @@
 package com.gbu.examplatform.modules.proctoring;
 
+import com.gbu.examplatform.modules.session.ExamSession;
+import com.gbu.examplatform.modules.session.ExamSessionRepository;
 import com.gbu.examplatform.modules.session.ExamSessionService;
+import com.gbu.examplatform.exception.ResourceNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
@@ -22,6 +25,20 @@ public class ProctoringController {
     private final ProctoringService proctoringService;
     private final ExamSessionService sessionService;
     private final BehaviorEventRepository behaviorEventRepository;
+    private final ExamProctorService examProctorService;
+    private final ExamSessionRepository examSessionRepository;
+
+    // ── scope guard ──────────────────────────────────────────────────────────────
+
+    /** Admins may act on any session; proctors only on their assigned exams. */
+    private void requireScope(UUID sessionId) {
+        ExamSession session = examSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Session", sessionId.toString()));
+        examProctorService.requireProctorScopeForExam(
+                session.getEnrollment().getExam().getId());
+    }
+
+    // ── endpoints ────────────────────────────────────────────────────────────────
 
     @GetMapping("/sessions/{sessionId}/events")
     @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
@@ -30,6 +47,7 @@ public class ProctoringController {
             @PathVariable UUID sessionId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+        requireScope(sessionId);
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(proctoringService.getSessionEvents(sessionId, pageable));
     }
@@ -38,6 +56,7 @@ public class ProctoringController {
     @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
     @Operation(summary = "Get violation summary for a session")
     public ResponseEntity<ViolationSummary> getSummary(@PathVariable UUID sessionId) {
+        requireScope(sessionId);
         return ResponseEntity.ok(proctoringService.getSessionSummary(sessionId));
     }
 
@@ -47,6 +66,7 @@ public class ProctoringController {
     public ResponseEntity<ProctoringEvent> addFlag(
             @PathVariable UUID sessionId,
             @RequestBody FlagRequest request) {
+        requireScope(sessionId);
         return ResponseEntity.ok(
                 proctoringService.addManualFlag(sessionId, request.getEventType(), request.getDescription()));
     }
@@ -55,6 +75,7 @@ public class ProctoringController {
     @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
     @Operation(summary = "Clear proctor flag (false positive)")
     public ResponseEntity<Map<String, String>> clearFlag(@PathVariable UUID sessionId) {
+        requireScope(sessionId);
         proctoringService.clearProctorFlag(sessionId);
         return ResponseEntity.ok(Map.of("message", "Flag cleared"));
     }
@@ -65,6 +86,7 @@ public class ProctoringController {
     public ResponseEntity<Map<String, String>> addNote(
             @PathVariable UUID sessionId,
             @RequestBody Map<String, String> body) {
+        requireScope(sessionId);
         proctoringService.addProctorNote(sessionId, body.get("note"));
         return ResponseEntity.ok(Map.of("message", "Note saved"));
     }
@@ -75,6 +97,7 @@ public class ProctoringController {
     public ResponseEntity<ExamSessionService.SessionDto> suspend(
             @PathVariable UUID sessionId,
             @RequestBody Map<String, String> body) {
+        requireScope(sessionId);
         sessionService.suspendSession(sessionId,
                 body.getOrDefault("reason", "Manually suspended by proctor"));
         return ResponseEntity.ok(sessionService.getSession(sessionId));
@@ -87,6 +110,7 @@ public class ProctoringController {
             @PathVariable UUID sessionId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+        requireScope(sessionId);
         Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
         return ResponseEntity.ok(behaviorEventRepository.findBySessionId(sessionId, pageable));
     }

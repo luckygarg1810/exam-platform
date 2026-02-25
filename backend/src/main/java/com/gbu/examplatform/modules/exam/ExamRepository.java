@@ -29,6 +29,11 @@ public interface ExamRepository extends JpaRepository<Exam, UUID> {
                         @Param("statuses") List<Exam.ExamStatus> statuses,
                         Pageable pageable);
 
+        /** Exams assigned to a proctor (all statuses except deleted). */
+        @Query("SELECT e FROM Exam e WHERE e.isDeleted = false " +
+                        "AND e.id IN (SELECT ep.exam.id FROM ExamProctor ep WHERE ep.proctor.id = :proctorId)")
+        Page<Exam> findByAssignedProctor(@Param("proctorId") UUID proctorId, Pageable pageable);
+
         @Modifying
         @Query("UPDATE Exam e SET e.status = :newStatus WHERE e.status = :oldStatus AND e.startTime < :now AND e.isDeleted = false")
         int transitionStatus(@Param("oldStatus") Exam.ExamStatus oldStatus,

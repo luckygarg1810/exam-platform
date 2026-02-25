@@ -74,6 +74,13 @@ public class ExamScheduler {
             List<ExamSession> activeSessions = sessionRepository.findActiveSessionsByExamId(exam.getId());
 
             for (ExamSession session : activeSessions) {
+                // Skip sessions with a valid proctor-granted extension — they have a
+                // later personal deadline and are handled by autoSubmitExpiredExtensions()
+                if (session.getExtendedEndAt() != null && session.getExtendedEndAt().isAfter(now)) {
+                    log.info("Session {} has extension until {} — skipping batch auto-submit",
+                            session.getId(), session.getExtendedEndAt());
+                    continue;
+                }
                 try {
                     sessionService.submitSession(session.getId());
                     log.info("Auto-submitted session {} (exam '{}' ended)",
@@ -85,8 +92,30 @@ public class ExamScheduler {
             }
 
             if (!activeSessions.isEmpty()) {
-                log.info("Auto-submitted {} session(s) for completed exam '{}'",
+                log.info("Processed {} session(s) for completed exam '{}'",
                         activeSessions.size(), exam.getTitle());
+            }
+        }
+    }
+
+    /**
+     * Every 30 seconds — auto-submit sessions whose proctor-granted extension
+     * deadline has passed. These sessions were skipped by the batch end-of-exam
+     * auto-submit because their personal deadline was still in the future at that
+     * point.
+     */
+    @Scheduled(fixedDelay = 30_000)
+    public void autoSubmitExpiredExtensions() {
+        Instant now = Instant.now();
+        List<ExamSession> expired = sessionRepository.findSessionsWithExpiredExtension(now);
+        for (ExamSession session : expired) {
+            try {
+                sessionService.submitSession(session.getId());
+                log.info("Auto-submitted extended session {} (extension deadline passed)",
+                        session.getId());
+            } catch (Exception ex) {
+                log.error("Failed to auto-submit extended session {}: {}",
+                        session.getId(), ex.getMessage());
             }
         }
     }

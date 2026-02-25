@@ -58,7 +58,7 @@ public class Question {
     private Instant createdAt;
 
     public enum QuestionType {
-        MCQ, SHORT_ANSWER
+        MCQ
     }
 
     @lombok.Data

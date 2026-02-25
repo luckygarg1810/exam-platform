@@ -3,8 +3,9 @@ BehaviorConsumer — consumes messages from `behavior.events` queue.
 
 A "behaviour event" is a discrete browser/client action (TAB_SWITCH,
 COPY_PASTE, CONTEXT_MENU, FULLSCREEN_EXIT, …).  Per-session event counts
-are tracked in memory (no persistence, suitable for single-instance
-deployment; extend with Redis if horizontal scaling is needed).
+are tracked in memory for feature computation.  Every event is also
+persisted to the `behavior_events` PostgreSQL table so that real-world
+data is available for retraining the XGBoost classifier.
 
 Message format (JSON):
 {
@@ -21,12 +22,15 @@ import json
 import logging
 import threading
 from collections import defaultdict, deque
+from datetime import datetime, timezone
 from time import time
 from typing import Any
 
 import pika
 
 from app.consumers.base_consumer import BaseConsumer
+from app.db.database import get_db
+from app.db.models import BehaviorEvent
 from app.ml.risk_aggregator import BehaviourFeatures, score_behaviour
 from app.publisher.result_publisher import publish_result
 
@@ -61,6 +65,9 @@ class BehaviorConsumer(BaseConsumer):
 
         now_sec = timestamp / 1000.0
 
+        # ── Persist raw event to DB (non-fatal) ───────────────────────────
+        _persist_event(session_id, event_type, timestamp, msg)
+
         with self._lock:
             history = self._events[session_id]
             history.append((event_type, now_sec))
@@ -94,6 +101,28 @@ class BehaviorConsumer(BaseConsumer):
                     },
                 },
             )
+
+
+def _persist_event(session_id: str, event_type: str, timestamp_ms: int, raw_msg: dict) -> None:
+    """
+    Write one behavior event row to the DB.
+    Errors are caught and logged so a DB outage never crashes the consumer.
+    """
+    try:
+        event_dt = datetime.fromtimestamp(timestamp_ms / 1000.0, tz=timezone.utc)
+        # Store any extra fields from the message as metadata (e.g. elementId, url)
+        metadata = {k: v for k, v in raw_msg.items()
+                    if k not in ("sessionId", "type", "timestamp")} or None
+        with get_db() as db:
+            db.add(BehaviorEvent(
+                session_id = session_id,
+                event_type = event_type,
+                timestamp  = event_dt,
+                metadata   = metadata,
+            ))
+    except Exception as exc:
+        logger.warning("Failed to persist behavior event (session=%s type=%s): %s",
+                       session_id, event_type, exc)
 
 
 def _compute_features(history: deque, now_sec: float) -> BehaviourFeatures:

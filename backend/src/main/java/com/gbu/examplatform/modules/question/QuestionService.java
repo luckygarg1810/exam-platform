@@ -37,13 +37,11 @@ public class QuestionService {
             throw new BusinessException("Questions cannot be added once an exam is PUBLISHED or ONGOING");
         }
 
-        if (request.getType() == Question.QuestionType.MCQ) {
-            if (request.getOptions() == null || request.getOptions().size() < 2) {
-                throw new BusinessException("MCQ must have at least 2 options");
-            }
-            if (request.getCorrectAnswer() == null || request.getCorrectAnswer().isBlank()) {
-                throw new BusinessException("MCQ must have a correct answer specified");
-            }
+        if (request.getOptions() == null || request.getOptions().size() < 2) {
+            throw new BusinessException("MCQ must have at least 2 options");
+        }
+        if (request.getCorrectAnswer() == null || request.getCorrectAnswer().isBlank()) {
+            throw new BusinessException("MCQ must have a correct answer specified");
         }
 
         // Auto-assign orderIndex at the end

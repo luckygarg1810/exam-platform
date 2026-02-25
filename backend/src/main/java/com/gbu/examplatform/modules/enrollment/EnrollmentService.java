@@ -13,13 +13,15 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -33,31 +35,16 @@ public class EnrollmentService {
     private final ExamSessionRepository sessionRepository;
     private final SecurityUtils securityUtils;
 
+    // ── Admin: enroll a single student ──────────────────────────────────────
+
     @Transactional
-    public EnrollmentDto enroll(UUID examId) {
-        UUID userId = securityUtils.getCurrentUserId();
-
-        Exam exam = examRepository.findById(examId)
-                .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
-
-        if (exam.getStatus() != Exam.ExamStatus.PUBLISHED && exam.getStatus() != Exam.ExamStatus.ONGOING) {
-            throw new BusinessException("Can only enroll in PUBLISHED or ONGOING exams");
-        }
-
-        if (!exam.getAllowLateEntry() && exam.getStatus() == Exam.ExamStatus.ONGOING) {
-            throw new BusinessException("Late entry is not allowed for this exam");
-        }
+    public EnrollmentDto adminEnroll(UUID examId, UUID userId) {
+        Exam exam = findPublishableExam(examId);
+        User user = findStudent(userId);
 
         if (enrollmentRepository.existsByExamIdAndUserId(examId, userId)) {
-            throw new BusinessException("Already enrolled in this exam");
+            throw new BusinessException("Student is already enrolled in this exam");
         }
-
-        if (exam.getEndTime().isBefore(Instant.now())) {
-            throw new BusinessException("Exam has already ended");
-        }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
 
         ExamEnrollment enrollment = ExamEnrollment.builder()
                 .exam(exam)
@@ -65,19 +52,60 @@ public class EnrollmentService {
                 .status(ExamEnrollment.EnrollmentStatus.REGISTERED)
                 .build();
 
-        // Catch the DB unique-constraint violation that occurs when two concurrent
-        // requests both pass the existsBy check before either save commits (Issue 51)
         try {
-            return toDto(enrollmentRepository.save(enrollment));
+            EnrollmentDto dto = toDto(enrollmentRepository.save(enrollment));
+            log.info("Admin enrolled student {} in exam {}", userId, examId);
+            return dto;
         } catch (DataIntegrityViolationException e) {
-            throw new BusinessException("Already enrolled in this exam");
+            throw new BusinessException("Student is already enrolled in this exam");
         }
     }
 
-    @Transactional
-    public void unenroll(UUID examId) {
-        UUID userId = securityUtils.getCurrentUserId();
+    // ── Admin: bulk-enroll multiple students ─────────────────────────────────
 
+    @Transactional
+    public BulkEnrollResult adminBulkEnroll(UUID examId, List<UUID> userIds) {
+        Exam exam = findPublishableExam(examId);
+
+        List<String> errors = new ArrayList<>();
+        int successCount = 0;
+
+        for (UUID userId : userIds) {
+            try {
+                User user = findStudent(userId);
+
+                if (enrollmentRepository.existsByExamIdAndUserId(examId, userId)) {
+                    errors.add(userId + ": already enrolled");
+                    continue;
+                }
+
+                ExamEnrollment enrollment = ExamEnrollment.builder()
+                        .exam(exam)
+                        .user(user)
+                        .status(ExamEnrollment.EnrollmentStatus.REGISTERED)
+                        .build();
+                enrollmentRepository.save(enrollment);
+                successCount++;
+            } catch (DataIntegrityViolationException e) {
+                errors.add(userId + ": already enrolled (concurrent request)");
+            } catch (Exception e) {
+                errors.add(userId + ": " + e.getMessage());
+            }
+        }
+
+        log.info("Bulk enroll exam {}: {} succeeded, {} failed", examId, successCount, errors.size());
+        return BulkEnrollResult.builder()
+                .examId(examId)
+                .successCount(successCount)
+                .failureCount(errors.size())
+                .errors(errors)
+                .build();
+    }
+
+    // ── Admin: unenroll a student ─────────────────────────────────────────────
+
+    @Transactional
+    public void adminUnenroll(UUID examId, UUID userId) {
         ExamEnrollment enrollment = enrollmentRepository.findByExamIdAndUserId(examId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enrollment",
                         "examId=" + examId + ", userId=" + userId));
@@ -90,13 +118,38 @@ public class EnrollmentService {
             throw new BusinessException("Cannot unenroll from a completed exam");
         }
 
-        // Block if the student has already started a session for this enrollment
         if (sessionRepository.findByEnrollmentId(enrollment.getId()).isPresent()) {
             throw new BusinessException("Cannot unenroll after a session has been started");
         }
 
         enrollmentRepository.delete(enrollment);
-        log.info("User {} unenrolled from exam {}", userId, examId);
+        log.info("Admin unenrolled user {} from exam {}", userId, examId);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private Exam findPublishableExam(UUID examId) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
+        if (Boolean.TRUE.equals(exam.getIsDeleted())) {
+            throw new ResourceNotFoundException("Exam", examId.toString());
+        }
+        if (exam.getStatus() == Exam.ExamStatus.COMPLETED) {
+            throw new BusinessException("Cannot enroll students in a completed exam");
+        }
+        if (exam.getEndTime().isBefore(Instant.now())) {
+            throw new BusinessException("Exam has already ended");
+        }
+        return exam;
+    }
+
+    private User findStudent(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        if (user.getRole() != User.Role.STUDENT) {
+            throw new BusinessException("User is not a student");
+        }
+        return user;
     }
 
     @Transactional(readOnly = true)
@@ -129,5 +182,20 @@ public class EnrollmentService {
         private String userEmail;
         private ExamEnrollment.EnrollmentStatus status;
         private Instant enrolledAt;
+    }
+
+    @Data
+    @Builder
+    public static class BulkEnrollRequest {
+        private List<UUID> userIds;
+    }
+
+    @Data
+    @Builder
+    public static class BulkEnrollResult {
+        private UUID examId;
+        private int successCount;
+        private int failureCount;
+        private List<String> errors;
     }
 }

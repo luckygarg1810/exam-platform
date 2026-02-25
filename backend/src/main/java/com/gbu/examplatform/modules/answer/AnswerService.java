@@ -52,7 +52,6 @@ public class AnswerService {
                         .build());
 
         answer.setSelectedAnswer(request.getSelectedAnswer());
-        answer.setTextAnswer(request.getTextAnswer());
         answer.setSavedAt(Instant.now());
 
         return toDto(answerRepository.save(answer));
@@ -84,7 +83,6 @@ public class AnswerService {
                 .sessionId(a.getSessionId())
                 .questionId(a.getQuestionId())
                 .selectedAnswer(a.getSelectedAnswer())
-                .textAnswer(a.getTextAnswer())
                 .marksAwarded(a.getMarksAwarded())
                 .savedAt(a.getSavedAt())
                 .build();
@@ -97,7 +95,6 @@ public class AnswerService {
         private UUID sessionId;
         private UUID questionId;
         private String selectedAnswer;
-        private String textAnswer;
         private BigDecimal marksAwarded;
         private Instant savedAt;
     }
@@ -105,7 +102,6 @@ public class AnswerService {
     @Data
     public static class SaveAnswerRequest {
         private UUID questionId;
-        private String selectedAnswer; // MCQ
-        private String textAnswer; // SHORT_ANSWER
+        private String selectedAnswer;
     }
 }
