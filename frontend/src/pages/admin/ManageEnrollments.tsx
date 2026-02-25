@@ -9,8 +9,8 @@ import toast from 'react-hot-toast'
 export const ManageEnrollments: React.FC<{ examId: string }> = ({ examId }) => {
     const [enrollments, setEnrollments] = useState<Enrollment[]>([])
     const [loading, setLoading] = useState(true)
-    const [studentId, setStudentId] = useState('')
-    const [bulkIds, setBulkIds] = useState('')
+    const [studentRoll, setStudentRoll] = useState('')
+    const [bulkRolls, setBulkRolls] = useState('')
     const [saving, setSaving] = useState(false)
     const [unenrolling, setUnenrolling] = useState<Enrollment | null>(null)
 
@@ -21,25 +21,26 @@ export const ManageEnrollments: React.FC<{ examId: string }> = ({ examId }) => {
 
     const handleEnroll = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!studentId.trim()) return
+        if (!studentRoll.trim()) return
         setSaving(true)
         try {
-            await enrollStudent(examId, studentId)
+            await enrollStudent(examId, studentRoll.trim())
             toast.success('Student enrolled')
-            setStudentId(''); load()
+            setStudentRoll(''); load()
         } catch (err: any) { toast.error(err.response?.data?.message || 'Enrollment failed') }
         finally { setSaving(false) }
     }
 
     const handleBulk = async (e: React.FormEvent) => {
         e.preventDefault()
-        const ids = bulkIds.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
-        if (!ids.length) { toast.error('Enter at least one student ID'); return }
+        const rolls = bulkRolls.split(/[,\s\n]+/).map(s => s.trim()).filter(Boolean)
+        if (!rolls.length) { toast.error('Enter at least one roll number'); return }
         setSaving(true)
         try {
-            const result = await bulkEnroll(examId, ids)
-            toast.success(`Enrolled ${result.enrolled} · Errors: ${result.errors?.length ?? 0}`)
-            setBulkIds(''); load()
+            const result = await bulkEnroll(examId, rolls)
+            toast.success(`Enrolled ${result.successCount} · Failed: ${result.failureCount}`)
+            if (result.errors?.length) result.errors.forEach(e => toast.error(e, { duration: 5000 }))
+            setBulkRolls(''); load()
         } catch (err: any) { toast.error(err.response?.data?.message || 'Bulk enrollment failed') }
         finally { setSaving(false) }
     }
@@ -60,17 +61,18 @@ export const ManageEnrollments: React.FC<{ examId: string }> = ({ examId }) => {
                 <form onSubmit={handleEnroll} className="bg-white rounded-xl border border-gray-200 p-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Enroll Single Student</h3>
                     <div className="flex gap-2">
-                        <input type="text" required className="input" value={studentId}
-                            onChange={e => setStudentId(e.target.value)} placeholder="User UUID" />
+                        <input type="text" required className="input" value={studentRoll}
+                            onChange={e => setStudentRoll(e.target.value)} placeholder="University Roll No. (e.g. 2021CS001)" />
                         <Button type="submit" loading={saving} size="sm">Enroll</Button>
                     </div>
                 </form>
 
                 {/* Bulk enroll */}
                 <form onSubmit={handleBulk} className="bg-white rounded-xl border border-gray-200 p-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Bulk Enroll by Student IDs</h3>
-                    <input className="input mb-2" value={bulkIds}
-                        onChange={e => setBulkIds(e.target.value)} placeholder="uuid1, uuid2, uuid3 (comma separated)" />
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Bulk Enroll by Roll Numbers</h3>
+                    <textarea className="input mb-2 w-full" rows={3} value={bulkRolls}
+                        onChange={e => setBulkRolls(e.target.value)}
+                        placeholder="2021CS001, 2021CS002, 2021CS003 (comma or newline separated)" />
                     <Button type="submit" loading={saving} size="sm">Bulk Enroll</Button>
                 </form>
             </div>
@@ -87,7 +89,7 @@ export const ManageEnrollments: React.FC<{ examId: string }> = ({ examId }) => {
                     <table className="min-w-full divide-y divide-gray-100">
                         <thead className="bg-gray-50">
                             <tr>
-                                {['Student', 'Email', 'Enrolled At', ''].map(h => (
+                                {['Roll No.', 'Student', 'Email', 'Enrolled At', ''].map(h => (
                                     <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
                                 ))}
                             </tr>
@@ -95,7 +97,8 @@ export const ManageEnrollments: React.FC<{ examId: string }> = ({ examId }) => {
                         <tbody className="divide-y divide-gray-100">
                             {enrollments.map(en => (
                                 <tr key={en.userId} className="hover:bg-gray-50">
-                                    <td className="px-4 py-2 text-sm font-medium text-gray-900">{en.userName}</td>
+                                    <td className="px-4 py-2 text-sm font-mono font-medium text-gray-900">{en.universityRoll ?? '—'}</td>
+                                    <td className="px-4 py-2 text-sm text-gray-700">{en.userName}</td>
                                     <td className="px-4 py-2 text-sm text-gray-500">{en.userEmail ?? '—'}</td>
                                     <td className="px-4 py-2 text-xs text-gray-400">
                                         {en.enrolledAt ? new Date(en.enrolledAt).toLocaleDateString() : '—'}

@@ -68,10 +68,10 @@ export interface AnswerDto {
 // ─── Enrollment ───────────────────────────────────────────────────────────────
 export interface Enrollment {
   id?: string; examId?: string; examTitle?: string
-  userId: string; userName: string; userEmail?: string
+  userId: string; userName: string; userEmail?: string; universityRoll?: string
   status?: string; enrolledAt?: string
 }
-export interface BulkEnrollResult { enrolled: number; errors?: string[] }
+export interface BulkEnrollResult { successCount: number; failureCount: number; errors?: string[] }
 // ─── Proctoring ───────────────────────────────────────────────────────────────
 export interface ViolationEvent {
   id?: string; sessionId?: string; eventType: string; severity?: string

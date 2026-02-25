@@ -29,12 +29,12 @@ public class EnrollmentController {
      */
     @PostMapping("/{examId}/enrollments")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Enroll a student in an exam (Admin only)")
+    @Operation(summary = "Enroll a student in an exam by university roll number (Admin only)")
     public ResponseEntity<EnrollmentService.EnrollmentDto> enrollStudent(
             @PathVariable UUID examId,
             @RequestBody EnrollStudentRequest body) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(enrollmentService.adminEnroll(examId, body.getUserId()));
+                .body(enrollmentService.adminEnroll(examId, body.getUniversityRoll()));
     }
 
     /**
@@ -43,12 +43,12 @@ public class EnrollmentController {
      */
     @PostMapping("/{examId}/enrollments/bulk")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Bulk-enroll students in an exam (Admin only)")
+    @Operation(summary = "Bulk-enroll students by university roll numbers (Admin only)")
     public ResponseEntity<EnrollmentService.BulkEnrollResult> bulkEnrollStudents(
             @PathVariable UUID examId,
             @RequestBody EnrollmentService.BulkEnrollRequest body) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(enrollmentService.adminBulkEnroll(examId, body.getUserIds()));
+                .body(enrollmentService.adminBulkEnroll(examId, body.getRolls()));
     }
 
     /**
@@ -80,6 +80,6 @@ public class EnrollmentController {
 
     @Data
     static class EnrollStudentRequest {
-        private UUID userId;
+        private String universityRoll;
     }
 }

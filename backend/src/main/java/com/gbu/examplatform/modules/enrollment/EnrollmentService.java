@@ -40,10 +40,13 @@ public class EnrollmentService {
     // ── Admin: enroll a single student ──────────────────────────────────────
 
     @Transactional
-    public EnrollmentDto adminEnroll(UUID examId, UUID userId) {
+    public EnrollmentDto adminEnroll(UUID examId, String universityRoll) {
         Exam exam = findPublishableExam(examId);
         examService.requireAdminOwnership(exam);
-        User user = findStudent(userId);
+        User user = userRepository.findByUniversityRoll(universityRoll)
+                .filter(u -> u.getRole() == User.Role.STUDENT)
+                .orElseThrow(() -> new ResourceNotFoundException("Student", universityRoll));
+        UUID userId = user.getId();
 
         if (enrollmentRepository.existsByExamIdAndUserId(examId, userId)) {
             throw new BusinessException("Student is already enrolled in this exam");
@@ -67,19 +70,22 @@ public class EnrollmentService {
     // ── Admin: bulk-enroll multiple students ─────────────────────────────────
 
     @Transactional
-    public BulkEnrollResult adminBulkEnroll(UUID examId, List<UUID> userIds) {
+    public BulkEnrollResult adminBulkEnroll(UUID examId, List<String> rolls) {
         Exam exam = findPublishableExam(examId);
         examService.requireAdminOwnership(exam);
 
         List<String> errors = new ArrayList<>();
         int successCount = 0;
 
-        for (UUID userId : userIds) {
+        for (String roll : rolls) {
             try {
-                User user = findStudent(userId);
+                User user = userRepository.findByUniversityRoll(roll)
+                        .filter(u -> u.getRole() == User.Role.STUDENT)
+                        .orElseThrow(() -> new ResourceNotFoundException("Student", roll));
+                UUID userId = user.getId();
 
                 if (enrollmentRepository.existsByExamIdAndUserId(examId, userId)) {
-                    errors.add(userId + ": already enrolled");
+                    errors.add(roll + ": already enrolled");
                     continue;
                 }
 
@@ -91,9 +97,9 @@ public class EnrollmentService {
                 enrollmentRepository.save(enrollment);
                 successCount++;
             } catch (DataIntegrityViolationException e) {
-                errors.add(userId + ": already enrolled (concurrent request)");
+                errors.add(roll + ": already enrolled (concurrent request)");
             } catch (Exception e) {
-                errors.add(userId + ": " + e.getMessage());
+                errors.add(roll + ": " + e.getMessage());
             }
         }
 
@@ -172,6 +178,7 @@ public class EnrollmentService {
                 .userId(e.getUser().getId())
                 .userName(e.getUser().getName())
                 .userEmail(e.getUser().getEmail())
+                .universityRoll(e.getUser().getUniversityRoll())
                 .status(e.getStatus())
                 .enrolledAt(e.getEnrolledAt())
                 .build();
@@ -186,6 +193,7 @@ public class EnrollmentService {
         private UUID userId;
         private String userName;
         private String userEmail;
+        private String universityRoll;
         private ExamEnrollment.EnrollmentStatus status;
         private Instant enrolledAt;
     }
@@ -193,7 +201,7 @@ public class EnrollmentService {
     @Data
     @Builder
     public static class BulkEnrollRequest {
-        private List<UUID> userIds;
+        private List<String> rolls;
     }
 
     @Data

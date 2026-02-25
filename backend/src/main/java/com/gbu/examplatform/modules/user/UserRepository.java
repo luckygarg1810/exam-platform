@@ -15,6 +15,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByUniversityRoll(String universityRoll);
+
     boolean existsByEmail(String email);
 
     @Query("SELECT u FROM User u WHERE u.isActive = true AND " +
