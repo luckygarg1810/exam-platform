@@ -57,6 +57,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/exams").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/exams/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/exams/**").hasRole("ADMIN")
+                        // Students can GET their own exam history; admins & proctors can access any
+                        .requestMatchers(HttpMethod.GET, "/api/reports/students/*/history").authenticated()
                         .requestMatchers("/api/reports/**").hasAnyRole("ADMIN", "PROCTOR")
                         // Proctor-only
                         .requestMatchers("/api/proctoring/**").hasAnyRole("PROCTOR", "ADMIN")
@@ -70,8 +72,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:3000", "http://localhost:5173",
-                "http://localhost:80", "http://*.gbu.ac.in"));
+        config.setAllowedOriginPatterns(List.of("http://localhost", "http://localhost:3000",
+                "http://localhost:5173", "http://localhost:80", "http://*.gbu.ac.in"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

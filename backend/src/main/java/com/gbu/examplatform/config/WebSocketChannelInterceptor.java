@@ -133,10 +133,9 @@ public class WebSocketChannelInterceptor implements ChannelInterceptor {
                 if ("PROCTOR".equals(role) || "ADMIN".equals(role))
                     return;
 
-                // Students must own the session
-                UUID ownerId = sessionRepository.findById(sessionId)
-                        .map(s -> s.getEnrollment().getUser().getId())
-                        .orElse(null);
+                // Students must own the session — use scalar query to avoid
+                // lazy-loading enrollment/user outside a Hibernate session
+                UUID ownerId = sessionRepository.findOwnerUserIdBySessionId(sessionId).orElse(null);
                 if (ownerId == null || !ownerId.toString().equals(principal.getId())) {
                     log.warn("SUBSCRIBE rejected: user {} does not own session {}", principal.getId(), sessionId);
                     throw new IllegalArgumentException("You are not authorised to subscribe to this session");

@@ -93,7 +93,7 @@ export interface BehaviorEvent {
 export interface SessionResultDto {
   sessionId?: string; examId?: string; examTitle?: string; userId?: string
   studentName?: string; studentEmail?: string; universityRoll?: string
-  score?: number; totalMarks?: number; isPassed?: boolean
+  score?: number; scorePercent?: number; totalMarks?: number; isPassed?: boolean
   enrollmentStatus?: string; isSuspended?: boolean; riskScore?: number
   proctorFlagged?: boolean; startedAt?: string; submittedAt?: string
 }

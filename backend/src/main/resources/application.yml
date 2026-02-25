@@ -112,6 +112,16 @@ management:
 
 logging:
   level:
-    com.gbu.examplatform: DEBUG
-    org.springframework.security: INFO
-    org.flywaydb: INFO
+    # Application
+    com.gbu.examplatform:                        DEBUG
+    com.gbu.examplatform.security:               INFO
+    # Spring
+    org.springframework.security:               WARN
+    org.springframework.web:                    WARN
+    org.springframework.amqp:                   WARN
+    # Database
+    org.flywaydb:                               INFO
+    org.hibernate.SQL:                          WARN
+    com.zaxxer.hikari:                          WARN
+  file:
+    name: logs/exam-platform.log

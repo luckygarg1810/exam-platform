@@ -87,4 +87,9 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, UUID> 
         // session
         @Query("SELECT COUNT(s) FROM ExamSession s WHERE s.id = :id AND s.enrollment.user.id = :userId")
         long countByIdAndUserId(@Param("id") UUID id, @Param("userId") UUID userId);
+
+        // Direct scalar query — avoids lazy-loading enrollment/user outside a
+        // transaction (used by WebSocketChannelInterceptor)
+        @Query("SELECT s.enrollment.user.id FROM ExamSession s WHERE s.id = :sessionId")
+        Optional<UUID> findOwnerUserIdBySessionId(@Param("sessionId") UUID sessionId);
 }

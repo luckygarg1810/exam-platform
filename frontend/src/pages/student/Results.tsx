@@ -54,9 +54,9 @@ export const Results: React.FC = () => {
                                         {row.submittedAt ? new Date(row.submittedAt).toLocaleString() : '—'}
                                     </td>
                                     <td className="px-5 py-3 text-sm font-bold">
-                                        {row.score != null ? (
-                                            <span className={row.score >= 50 ? 'text-green-600' : 'text-red-600'}>
-                                                {row.score}%
+                                        {row.scorePercent != null ? (
+                                            <span className={row.scorePercent >= 50 ? 'text-green-600' : 'text-red-600'}>
+                                                {row.scorePercent.toFixed(1)}%
                                             </span>
                                         ) : '—'}
                                     </td>

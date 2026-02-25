@@ -74,6 +74,9 @@ public class ExamSessionService {
         if (exam.getStatus() != Exam.ExamStatus.ONGOING && exam.getStatus() != Exam.ExamStatus.PUBLISHED) {
             throw new BusinessException("Exam is not currently active");
         }
+        if (exam.getStartTime().isAfter(Instant.now())) {
+            throw new BusinessException("Exam has not started yet");
+        }
         if (exam.getEndTime().isBefore(Instant.now())) {
             throw new BusinessException("Exam has ended");
         }

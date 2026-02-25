@@ -164,6 +164,12 @@ public class ReportService {
         // students receive null for these fields (privacy, issue #22 follow-up)
         boolean isPrivileged = securityUtils.isAdmin() || securityUtils.isProctor();
 
+        BigDecimal scorePercent = (s.getScore() != null && exam.getTotalMarks() != null && exam.getTotalMarks() > 0)
+                ? s.getScore()
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(exam.getTotalMarks()), 2, java.math.RoundingMode.HALF_UP)
+                : null;
+
         return SessionResultDto.builder()
                 .sessionId(s.getId())
                 .examId(exam.getId())
@@ -173,6 +179,7 @@ public class ReportService {
                 .studentEmail(user.getEmail())
                 .universityRoll(user.getUniversityRoll())
                 .score(s.getScore())
+                .scorePercent(scorePercent)
                 .totalMarks(exam.getTotalMarks())
                 .isPassed(s.getIsPassed())
                 .enrollmentStatus(enrollment.getStatus().name())
@@ -251,6 +258,8 @@ public class ReportService {
         private String studentEmail;
         private String universityRoll;
         private BigDecimal score;
+        /** score as a percentage of totalMarks (0–100), e.g. 75.00 for 75% */
+        private BigDecimal scorePercent;
         private Integer totalMarks;
         private Boolean isPassed;
         private String enrollmentStatus;

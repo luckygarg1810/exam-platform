@@ -53,7 +53,9 @@ export const StudentDashboard: React.FC = () => {
                     { label: 'Completed', value: history.length, color: 'text-purple-600' },
                     {
                         label: 'Avg Score',
-                        value: history.length ? `${(history.reduce((s, h) => s + (h.score ?? 0), 0) / history.length).toFixed(1)}%` : '—',
+                        value: history.length
+                            ? `${(history.reduce((s, h) => s + (h.scorePercent ?? 0), 0) / history.length).toFixed(1)}%`
+                            : '—',
                         color: 'text-gray-900',
                     },
                 ].map(s => (
@@ -119,7 +121,7 @@ export const StudentDashboard: React.FC = () => {
                                             {row.submittedAt ? new Date(row.submittedAt).toLocaleDateString() : '—'}
                                         </td>
                                         <td className="px-4 py-3 text-sm font-semibold">
-                                            {row.score != null ? `${row.score}%` : '—'}
+                                            {row.scorePercent != null ? `${row.scorePercent.toFixed(1)}%` : '—'}
                                         </td>
                                         <td className="px-4 py-3">
                                             <Badge variant="green" label="Completed" />

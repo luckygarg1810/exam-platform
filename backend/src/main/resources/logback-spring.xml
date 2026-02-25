@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <!-- ─── Properties ───────────────────────────────────────────────── -->
+    <springProperty  name="APP_NAME"  source="spring.application.name" defaultValue="exam-platform"/>
+    <property name="LOG_DIR"          value="logs"/>
+    <property name="LOG_FILE"         value="${LOG_DIR}/${APP_NAME}"/>
+    <property name="MAX_FILE_SIZE"    value="50MB"/>
+    <property name="MAX_HISTORY"      value="30"/>
+    <property name="TOTAL_SIZE_CAP"   value="1GB"/>
+
+    <!--
+        Console pattern:
+          timestamp  |  level (coloured)  |  thread  |  logger (short)  |  message
+    -->
+    <property name="CONSOLE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%15.15t] %cyan(%-40.40logger{39}) : %msg%n%rootException"/>
+
+    <!-- File pattern (no ANSI colours) -->
+    <property name="FILE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%t] %logger{39} : %msg%n%rootException"/>
+
+    <!-- ─── Console Appender ─────────────────────────────────────────── -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${CONSOLE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ─── Rolling File Appender (all levels) ───────────────────────── -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+            <totalSizeCap>${TOTAL_SIZE_CAP}</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ─── Error-only File Appender ────────────────────────────────── -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/error.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/error.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ─── Logger tuning ───────────────────────────────────────────── -->
+
+    <!-- Application code: DEBUG by default (overridden by application.yml) -->
+    <logger name="com.gbu.examplatform" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </logger>
+
+    <!-- Hibernate SQL: set to DEBUG to see queries; WARN for production -->
+    <logger name="org.hibernate.SQL"                         level="WARN"/>
+    <logger name="org.hibernate.orm.jdbc.bind"               level="WARN"/>
+    <logger name="org.hibernate.type.descriptor.sql"         level="WARN"/>
+
+    <!-- Spring Security: INFO to see auth decisions, reduce to WARN in prod -->
+    <logger name="org.springframework.security"              level="WARN"/>
+    <logger name="org.springframework.web"                   level="WARN"/>
+    <logger name="org.springframework.web.servlet.mvc"       level="WARN"/>
+
+    <!-- Flyway -->
+    <logger name="org.flywaydb"                              level="INFO"/>
+
+    <!-- RabbitMQ / pika noise -->
+    <logger name="org.springframework.amqp"                  level="WARN"/>
+
+    <!-- Actuator -->
+    <logger name="org.springframework.boot.actuate"          level="WARN"/>
+
+    <!-- HikariCP connection pool -->
+    <logger name="com.zaxxer.hikari"                         level="WARN"/>
+
+    <!-- ─── Root logger ───────────────────────────────────────────────── -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </root>
+
+</configuration>

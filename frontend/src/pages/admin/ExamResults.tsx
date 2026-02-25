@@ -53,7 +53,7 @@ export const ExamResults: React.FC<{ examId: string }> = ({ examId }) => {
                                     <td className="px-4 py-2 text-sm font-medium text-gray-900">{r.studentName}</td>
                                     <td className="px-4 py-2 text-sm text-gray-500">{r.universityRoll ?? '—'}</td>
                                     <td className="px-4 py-2 text-sm font-bold">
-                                        {r.score != null ? <span className={r.score >= 50 ? 'text-green-600' : 'text-red-600'}>{r.score}%</span> : '—'}
+                                        {r.scorePercent != null ? <span className={r.scorePercent >= 50 ? 'text-green-600' : 'text-red-600'}>{r.scorePercent.toFixed(1)}%</span> : '—'}
                                     </td>
                                     <td className="px-4 py-2 text-sm text-gray-500">
                                         {r.score != null && r.totalMarks != null ? `${r.score} / ${r.totalMarks}` : '—'}
