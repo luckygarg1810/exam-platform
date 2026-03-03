@@ -33,7 +33,7 @@ public class User {
     @Column(nullable = false, length = 20)
     private Role role;
 
-    @Column(name = "university_roll", length = 50)
+    @Column(name = "university_roll", length = 50, unique = true)
     private String universityRoll;
 
     @Column(length = 100)

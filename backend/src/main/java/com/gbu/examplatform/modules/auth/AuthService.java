@@ -44,6 +44,11 @@ public class AuthService {
             throw new BusinessException("Email already registered: " + request.getEmail());
         }
 
+        if (request.getUniversityRoll() != null && !request.getUniversityRoll().isBlank()
+                && userRepository.existsByUniversityRoll(request.getUniversityRoll())) {
+            throw new BusinessException("University roll number already registered: " + request.getUniversityRoll());
+        }
+
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
