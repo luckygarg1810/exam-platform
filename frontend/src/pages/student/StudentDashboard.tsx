@@ -43,8 +43,14 @@ export const StudentDashboard: React.FC = () => {
             {/* Hero welcome banner */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6 mb-6 animate-fade-in-up">
                 <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center text-2xl font-black text-violet-600 shadow-sm">
-                        {user?.name?.charAt(0)?.toUpperCase()}
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-sm flex-shrink-0">
+                        {user?.profilePhotoUrl ? (
+                            <img src={user.profilePhotoUrl} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full bg-violet-50 flex items-center justify-center text-2xl font-black text-violet-600">
+                                {user?.name?.charAt(0)?.toUpperCase()}
+                            </div>
+                        )}
                     </div>
                     <div>
                         <h1 className="text-xl font-black text-gray-900">Welcome back, {user?.name?.split(' ')[0]} 👋</h1>
@@ -101,7 +107,7 @@ export const StudentDashboard: React.FC = () => {
                     <div>
                         <h2 className="section-title mb-3">Upcoming</h2>
                         {upcoming.length === 0 ? (
-                        <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+                            <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
                                 <div className="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center mx-auto mb-3">
                                     <svg className="w-6 h-6 text-violet-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                 </div>

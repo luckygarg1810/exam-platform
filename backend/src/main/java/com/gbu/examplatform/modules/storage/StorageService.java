@@ -1,17 +1,16 @@
 package com.gbu.examplatform.modules.storage;
 
 import io.minio.*;
-import io.minio.http.Method;
 import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -19,6 +18,14 @@ import java.util.concurrent.TimeUnit;
 public class StorageService {
 
     private final MinioClient minioClient;
+
+    /**
+     * Public-facing base URL for MinIO (e.g. http://localhost:9000).
+     * Injected from minio.public-endpoint in application.yml.
+     * Used to build plain (unsigned) URLs for publicly-readable buckets.
+     */
+    @Value("${minio.public-endpoint:${minio.endpoint}}")
+    private String publicEndpoint;
 
     public void uploadFile(String bucket, String objectKey, InputStream inputStream,
             long size, String contentType) {
@@ -49,18 +56,20 @@ public class StorageService {
         }
     }
 
+    /**
+     * Returns a plain public URL for the given object.
+     * The profile-photos bucket is set to "download" (public-read) policy,
+     * so no presigned signature is needed and the URL never expires.
+     * The {@code expiryMinutes} parameter is kept for API compatibility but
+     * ignored.
+     */
     public String getPresignedUrl(String bucket, String objectKey, int expiryMinutes) {
-        try {
-            return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .method(Method.GET)
-                    .bucket(bucket)
-                    .object(objectKey)
-                    .expiry(expiryMinutes, TimeUnit.MINUTES)
-                    .build());
-        } catch (Exception e) {
-            log.error("Failed to generate presigned URL: {}", e.getMessage());
+        if (objectKey == null || objectKey.isBlank())
             return null;
-        }
+        // Trim trailing slash from endpoint, build:
+        // <publicEndpoint>/<bucket>/<objectKey>
+        String base = publicEndpoint.replaceAll("/+$", "");
+        return base + "/" + bucket + "/" + objectKey;
     }
 
     public InputStream downloadFile(String bucket, String objectKey) {

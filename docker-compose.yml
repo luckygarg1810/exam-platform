@@ -123,6 +123,7 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-examuser}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-exampassword}
       MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-miniopassword}
       JWT_SECRET: ${JWT_SECRET:-changeme_use_at_least_64_chars_for_hs512_security_key}
