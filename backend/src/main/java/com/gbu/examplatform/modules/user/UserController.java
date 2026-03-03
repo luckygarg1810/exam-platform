@@ -34,15 +34,6 @@ public class UserController {
         return ResponseEntity.ok(userService.updateMyProfile(request));
     }
 
-    @PostMapping("/me/photo")
-    @Operation(summary = "Upload profile photo (multipart/form-data)")
-    public ResponseEntity<Map<String, String>> uploadPhoto(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "isIdPhoto", defaultValue = "false") boolean isIdPhoto) {
-        String url = userService.uploadProfilePhoto(file, isIdPhoto);
-        return ResponseEntity.ok(Map.of("url", url));
-    }
-
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "List all users (Admin only)")

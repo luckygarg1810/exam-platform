@@ -124,9 +124,17 @@ export const Header: React.FC = () => {
                                 >
                                     {/* Avatar */}
                                     <div className="relative">
-                                        <div className={`w-8 h-8 rounded-xl ${rc.avatar} flex items-center justify-center shadow-sm`}>
-                                            <span className="text-white text-xs font-bold tracking-wide">{initials}</span>
-                                        </div>
+                                        {user.profilePhotoUrl ? (
+                                            <img
+                                                src={user.profilePhotoUrl}
+                                                alt={user.name}
+                                                className="w-8 h-8 rounded-xl object-cover shadow-sm"
+                                            />
+                                        ) : (
+                                            <div className={`w-8 h-8 rounded-xl ${rc.avatar} flex items-center justify-center shadow-sm`}>
+                                                <span className="text-white text-xs font-bold tracking-wide">{initials}</span>
+                                            </div>
+                                        )}
                                         {/* Online dot */}
                                         <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 ${rc.dot} rounded-full border-2 border-white`} />
                                     </div>
@@ -152,9 +160,17 @@ export const Header: React.FC = () => {
                                         {/* Header section */}
                                         <div className="px-4 py-3.5 bg-gray-50 border-b border-gray-100">
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-xl ${rc.avatar} flex items-center justify-center shadow-sm flex-shrink-0`}>
-                                                    <span className="text-white text-sm font-bold">{initials}</span>
-                                                </div>
+                                                {user.profilePhotoUrl ? (
+                                                    <img
+                                                        src={user.profilePhotoUrl}
+                                                        alt={user.name}
+                                                        className="w-10 h-10 rounded-xl object-cover shadow-sm flex-shrink-0"
+                                                    />
+                                                ) : (
+                                                    <div className={`w-10 h-10 rounded-xl ${rc.avatar} flex items-center justify-center shadow-sm flex-shrink-0`}>
+                                                        <span className="text-white text-sm font-bold">{initials}</span>
+                                                    </div>
+                                                )}
                                                 <div className="min-w-0">
                                                     <p className="text-sm font-bold text-gray-900 truncate">{user.name}</p>
                                                     {user.email && <p className="text-xs text-gray-400 truncate mt-0.5">{user.email}</p>}

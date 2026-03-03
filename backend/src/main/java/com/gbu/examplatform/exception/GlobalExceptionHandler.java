@@ -10,6 +10,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.BindException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -64,12 +66,15 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), ex.getMessage(), request.getRequestURI()));
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex,
+    @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class})
+    public ResponseEntity<ErrorResponse> handleValidation(Exception ex,
             HttpServletRequest request) {
         Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
+        BindingResult br = (ex instanceof BindException be)
+                ? be.getBindingResult()
+                : ((MethodArgumentNotValidException) ex).getBindingResult();
+        br.getAllErrors().forEach(error -> {
+            String fieldName = (error instanceof FieldError fe) ? fe.getField() : error.getObjectName();
             errors.put(fieldName, error.getDefaultMessage());
         });
         log.warn("[400 VALIDATION] {} {} — fields: {}", request.getMethod(), request.getRequestURI(), errors);

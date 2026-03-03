@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -21,9 +22,9 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @PostMapping("/register")
-    @Operation(summary = "Register a new user (student or proctor)")
-    public ResponseEntity<TokenResponse> register(@Valid @RequestBody RegisterRequest request) {
+    @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Register a new student (multipart/form-data with photo)")
+    public ResponseEntity<TokenResponse> register(@ModelAttribute @Valid RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 

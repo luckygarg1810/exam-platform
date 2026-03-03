@@ -4,6 +4,7 @@ import com.gbu.examplatform.exception.BusinessException;
 import com.gbu.examplatform.exception.ResourceNotFoundException;
 import com.gbu.examplatform.modules.auth.dto.*;
 import com.gbu.examplatform.modules.notification.EmailService;
+import com.gbu.examplatform.modules.storage.StorageService;
 import com.gbu.examplatform.modules.user.User;
 import com.gbu.examplatform.modules.user.UserRepository;
 import com.gbu.examplatform.security.JwtTokenProvider;
@@ -15,6 +16,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -28,6 +30,10 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
     private final EmailService emailService;
+    private final StorageService storageService;
+
+    @Value("${minio.buckets.profile-photos}")
+    private String profilePhotosBucket;
 
     @Value("${jwt.access-token-expiry-ms:3600000}")
     private long accessTokenExpiryMs;
@@ -49,17 +55,35 @@ public class AuthService {
             throw new BusinessException("University roll number already registered: " + request.getUniversityRoll());
         }
 
+        MultipartFile photo = request.getPhoto();
+        if (photo == null || photo.isEmpty()) {
+            throw new BusinessException("Profile photo is required for registration");
+        }
+
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .role(User.Role.STUDENT) // Self-registration is always STUDENT; admins/proctors are created via DB
+                .role(User.Role.STUDENT)
                 .universityRoll(request.getUniversityRoll())
                 .department(request.getDepartment())
                 .isActive(true)
                 .build();
 
         user = userRepository.save(user);
+
+        // Upload profile photo to MinIO and link it to the new user
+        String ext = getPhotoExt(photo.getOriginalFilename());
+        String objectKey = "profile/" + user.getId() + "/" + System.currentTimeMillis() + ext;
+        try {
+            storageService.uploadFile(profilePhotosBucket, objectKey,
+                    photo.getInputStream(), photo.getSize(), photo.getContentType());
+        } catch (Exception e) {
+            throw new RuntimeException("Profile photo upload failed: " + e.getMessage(), e);
+        }
+        user.setProfilePhotoPath(objectKey);
+        userRepository.save(user);
+
         return buildTokenResponse(user);
     }
 
@@ -178,6 +202,11 @@ public class AuthService {
         refreshTokenService.deleteRefreshToken(user.getId().toString());
 
         log.info("Password reset successfully for: {}", email);
+    }
+
+    private String getPhotoExt(String filename) {
+        if (filename == null || !filename.contains(".")) return ".jpg";
+        return filename.substring(filename.lastIndexOf("."));
     }
 
     private TokenResponse buildTokenResponse(User user) {

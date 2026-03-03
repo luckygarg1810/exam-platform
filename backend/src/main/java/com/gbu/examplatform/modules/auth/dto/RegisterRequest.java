@@ -2,6 +2,7 @@ package com.gbu.examplatform.modules.auth.dto;
 
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 public class RegisterRequest {
@@ -23,4 +24,7 @@ public class RegisterRequest {
 
     @Size(max = 100, message = "Department must be under 100 characters")
     private String department;
+
+    // Required for STUDENT self-registration; validated in AuthService
+    private MultipartFile photo;
 }
