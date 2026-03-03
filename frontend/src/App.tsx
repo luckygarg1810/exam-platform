@@ -67,7 +67,15 @@ const AppInner: React.FC = () => {
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <Spinner size="lg" />
+                <div className="text-center animate-fade-in-up">
+                    <div className="mx-auto w-16 h-16 mb-6">
+                        <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-md">
+                            <span className="text-white font-black text-xl tracking-tight">GBU</span>
+                        </div>
+                    </div>
+                    <Spinner size="lg" className="mx-auto text-violet-500" />
+                    <p className="mt-4 text-gray-400 text-sm font-medium">Loading...</p>
+                </div>
             </div>
         )
     }

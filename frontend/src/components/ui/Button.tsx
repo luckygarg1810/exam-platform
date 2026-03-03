@@ -11,17 +11,41 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<Variant, string> = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white border-transparent',
-    secondary: 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300',
-    danger: 'bg-red-600 hover:bg-red-700 text-white border-transparent',
-    ghost: 'bg-transparent hover:bg-gray-100 text-gray-600 border-transparent',
-    success: 'bg-green-600 hover:bg-green-700 text-white border-transparent',
+    primary: [
+        'bg-gradient-to-r from-violet-600 to-purple-600',
+        'hover:from-violet-700 hover:to-purple-700',
+        'text-white border-transparent shadow-violet hover:shadow-violet-lg',
+        'active:scale-[0.98]',
+    ].join(' '),
+    secondary: [
+        'bg-white hover:bg-violet-50',
+        'text-violet-700 border border-violet-200 hover:border-violet-400',
+        'shadow-card hover:shadow-violet-sm',
+        'active:scale-[0.98]',
+    ].join(' '),
+    danger: [
+        'bg-gradient-to-r from-red-500 to-rose-600',
+        'hover:from-red-600 hover:to-rose-700',
+        'text-white border-transparent shadow-sm',
+        'active:scale-[0.98]',
+    ].join(' '),
+    ghost: [
+        'bg-transparent hover:bg-violet-50',
+        'text-violet-600 border-transparent',
+        'active:scale-[0.98]',
+    ].join(' '),
+    success: [
+        'bg-gradient-to-r from-emerald-500 to-green-600',
+        'hover:from-emerald-600 hover:to-green-700',
+        'text-white border-transparent shadow-sm',
+        'active:scale-[0.98]',
+    ].join(' '),
 }
 
 const sizes: Record<Size, string> = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base',
+    sm: 'px-3.5 py-1.5 text-xs font-semibold rounded-lg',
+    md: 'px-4.5 py-2 text-sm font-semibold rounded-xl',
+    lg: 'px-6 py-3 text-base font-semibold rounded-xl',
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -38,9 +62,9 @@ export const Button: React.FC<ButtonProps> = ({
         {...rest}
         disabled={disabled || loading}
         className={[
-            'inline-flex items-center gap-2 font-medium rounded-lg border transition-colors',
-            'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
-            'disabled:opacity-50 disabled:cursor-not-allowed',
+            'inline-flex items-center gap-2 font-semibold border transition-all duration-200',
+            'focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:ring-offset-2',
+            'disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none',
             variants[variant],
             sizes[size],
             className,

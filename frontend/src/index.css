@@ -4,11 +4,71 @@
 
 @layer components {
     .input {
-        @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+        @apply w-full border border-gray-200 bg-white rounded-xl px-3.5 py-2.5 text-sm text-gray-800 placeholder-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 hover:border-gray-300;
     }
 
     .label {
-        @apply block text-sm font-medium text-gray-700 mb-1;
+        @apply block text-sm font-semibold text-gray-700 mb-1.5;
+    }
+
+    .card {
+        @apply bg-white rounded-2xl border border-gray-100 shadow-card transition-all duration-300;
+    }
+
+    .card-hover {
+        @apply hover:shadow-card-hover hover:-translate-y-0.5;
+    }
+
+    .btn-gradient {
+        @apply bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-semibold shadow-violet hover:shadow-violet-lg transition-all duration-200;
+    }
+
+    .stat-card {
+        @apply relative bg-white rounded-2xl border border-gray-100 p-5 overflow-hidden shadow-card;
+    }
+
+    .stat-card-gradient {
+        @apply relative rounded-2xl p-5 overflow-hidden text-white shadow-violet;
+    }
+
+    .page-header-gradient {
+        @apply bg-white border border-gray-100 rounded-2xl p-6 mb-6 shadow-card;
+    }
+
+    .tab-active {
+        @apply bg-white text-violet-600 font-semibold shadow-sm ring-1 ring-gray-200;
+    }
+
+    .tab-inactive {
+        @apply text-gray-500 hover:text-gray-700 transition-colors;
+    }
+
+    .tab-underline-active {
+        @apply border-violet-500 text-violet-600 font-semibold;
+    }
+
+    .tab-underline-inactive {
+        @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300;
+    }
+
+    .badge-dot {
+        @apply inline-flex items-center gap-1.5;
+    }
+
+    .glass-card {
+        @apply bg-white/70 backdrop-blur-sm border border-white/80 rounded-2xl shadow-card;
+    }
+
+    .section-title {
+        @apply text-xs font-bold text-gray-400 uppercase tracking-widest mb-3;
+    }
+
+    .gradient-text {
+        @apply bg-gradient-to-r from-violet-700 to-purple-700 bg-clip-text text-transparent;
+    }
+
+    .alert-item {
+        @apply px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors duration-150 border-b border-gray-100 last:border-0;
     }
 }
 
@@ -18,11 +78,15 @@
     }
 
     body {
-        @apply h-full bg-gray-50 text-gray-900;
+        @apply h-full bg-gray-50 text-gray-900 antialiased;
     }
 
     #root {
         @apply h-full;
+    }
+
+    *:focus-visible {
+        outline: none;
     }
 }
 
@@ -31,4 +95,107 @@
         -webkit-user-select: none;
         user-select: none;
     }
+
+    .animate-delay-100 {
+        animation-delay: 100ms;
+    }
+
+    .animate-delay-200 {
+        animation-delay: 200ms;
+    }
+
+    .animate-delay-300 {
+        animation-delay: 300ms;
+    }
+
+    .animate-delay-400 {
+        animation-delay: 400ms;
+    }
+
+    .animate-delay-500 {
+        animation-delay: 500ms;
+    }
+
+    .animate-fill-both {
+        animation-fill-mode: both;
+    }
+
+    .scrollbar-violet::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .scrollbar-violet::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .scrollbar-violet::-webkit-scrollbar-thumb {
+        background: #c4b5fd;
+        border-radius: 2px;
+    }
+
+    .scrollbar-violet::-webkit-scrollbar-thumb:hover {
+        background: #8b5cf6;
+    }
+
+    .text-gradient-violet {
+        background: linear-gradient(135deg, #7c3aed, #9333ea);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+}
+
+/* Smooth staggered animation for lists */
+.stagger-1 {
+    animation-delay: 50ms;
+    animation-fill-mode: both;
+}
+
+.stagger-2 {
+    animation-delay: 100ms;
+    animation-fill-mode: both;
+}
+
+.stagger-3 {
+    animation-delay: 150ms;
+    animation-fill-mode: both;
+}
+
+.stagger-4 {
+    animation-delay: 200ms;
+    animation-fill-mode: both;
+}
+
+.stagger-5 {
+    animation-delay: 250ms;
+    animation-fill-mode: both;
+}
+
+.stagger-6 {
+    animation-delay: 300ms;
+    animation-fill-mode: both;
+}
+
+/* Custom checkbox styling */
+input[type="checkbox"] {
+    accent-color: #7c3aed;
+}
+
+/* Custom scrollbar global */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #ddd6fe;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a78bfa;
 }

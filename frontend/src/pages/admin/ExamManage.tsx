@@ -55,22 +55,41 @@ export const ExamManage: React.FC = () => {
 
     return (
         <Layout>
-            <button onClick={() => navigate('/admin')} className="text-sm text-gray-500 hover:text-gray-700 mb-4 flex items-center gap-1">
-                ← All Exams
+            <button onClick={() => navigate('/admin')}
+                className="inline-flex items-center gap-2 text-sm text-violet-600 hover:text-violet-800 font-semibold mb-5 group">
+                <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                All Exams
             </button>
 
-            {/* Exam header */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <h1 className="text-xl font-bold text-gray-900">{exam.title}</h1>
+            {/* Exam header card */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6 mb-5 animate-fade-in-up">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="w-9 h-9 bg-violet-50 rounded-xl flex items-center justify-center">
+                                <svg className="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                            </div>
+                            <h1 className="text-xl font-black text-gray-900">{exam.title}</h1>
                             <Badge variant={examStatusBadge(exam.status)} label={exam.status} />
                         </div>
-                        <p className="text-sm text-gray-500">{exam.description}</p>
-                        <div className="flex gap-4 text-xs text-gray-500 mt-2">
-                            <span>{exam.durationMinutes} min</span>
-                            <span>{exam.totalMarks} marks</span>
+                        <p className="text-gray-500 text-sm ml-12">{exam.description}</p>
+                        <div className="flex gap-4 text-xs text-gray-400 mt-3 ml-12">
+                            <span className="flex items-center gap-1">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {exam.durationMinutes} min
+                            </span>
+                            <span className="flex items-center gap-1">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                {exam.totalMarks} marks
+                            </span>
                             {exam.subject && <span>{exam.subject}</span>}
                         </div>
                     </div>
@@ -86,20 +105,24 @@ export const ExamManage: React.FC = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 mb-5 gap-1">
+            <div className="flex border-b border-gray-200 mb-6 gap-0">
                 {tabs.map(t => (
                     <button key={t.id} onClick={() => setTab(t.id)}
-                        className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                        className={`px-5 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all duration-200 ${tab === t.id
+                                ? 'border-violet-600 text-violet-700'
+                                : 'border-transparent text-gray-500 hover:text-violet-600 hover:border-violet-200'
                             }`}>
                         {t.label}
                     </button>
                 ))}
             </div>
 
-            {tab === 'questions' && <QuestionManager examId={eid} />}
-            {tab === 'enrollments' && <ManageEnrollments examId={eid} />}
-            {tab === 'proctors' && <ManageProctors examId={eid} />}
-            {tab === 'results' && <ExamResults examId={eid} />}
+            <div className="animate-fade-in">
+                {tab === 'questions' && <QuestionManager examId={eid} />}
+                {tab === 'enrollments' && <ManageEnrollments examId={eid} />}
+                {tab === 'proctors' && <ManageProctors examId={eid} />}
+                {tab === 'results' && <ExamResults examId={eid} />}
+            </div>
 
             <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Edit Exam" size="lg">
                 <CreateExamForm

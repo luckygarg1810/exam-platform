@@ -41,8 +41,13 @@ export const ManageProctors: React.FC<{ examId: string }> = ({ examId }) => {
 
     return (
         <div>
-            <form onSubmit={handleAssign} className="bg-white rounded-xl border border-gray-200 p-4 mb-5">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Assign Proctor</h3>
+            <form onSubmit={handleAssign} className="bg-white rounded-2xl border border-gray-100 shadow-card p-5 mb-5">
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 bg-violet-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900">Assign Proctor</h3>
+                </div>
                 <div className="flex gap-2">
                     <input type="number" min={1} required className="input" value={proctorId}
                         onChange={e => setProctorId(e.target.value)} placeholder="Proctor User ID" />
@@ -50,34 +55,39 @@ export const ManageProctors: React.FC<{ examId: string }> = ({ examId }) => {
                 </div>
             </form>
 
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-900">Assigned Proctors ({proctors.length})</h3>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+                    <h3 className="text-sm font-bold text-gray-900">Assigned Proctors <span className="text-violet-600">({proctors.length})</span></h3>
                 </div>
                 {loading ? (
                     <div className="flex justify-center py-8"><Spinner /></div>
                 ) : proctors.length === 0 ? (
-                    <p className="text-center text-gray-400 text-sm py-8">No proctors assigned.</p>
+                    <div className="text-center py-10">
+                        <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center mx-auto mb-2">
+                            <svg className="w-5 h-5 text-violet-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                        </div>
+                        <p className="text-sm text-gray-400">No proctors assigned.</p>
+                    </div>
                 ) : (
                     <table className="min-w-full divide-y divide-gray-100">
                         <thead className="bg-gray-50">
                             <tr>
                                 {['Name', 'Email', 'Assigned At', ''].map(h => (
-                                    <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                                    <th key={h} className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">{h}</th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-gray-50">
                             {proctors.map(p => (
-                                <tr key={p.proctorId} className="hover:bg-gray-50">
-                                    <td className="px-4 py-2 text-sm font-medium text-gray-900">{p.proctorName}</td>
-                                    <td className="px-4 py-2 text-sm text-gray-500">{p.proctorEmail}</td>
-                                    <td className="px-4 py-2 text-xs text-gray-400">
+                                <tr key={p.proctorId} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">{p.proctorName}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-500">{p.proctorEmail}</td>
+                                    <td className="px-4 py-3 text-xs text-gray-400">
                                         {p.assignedAt ? new Date(p.assignedAt).toLocaleDateString() : '—'}
                                     </td>
-                                    <td className="px-4 py-2">
+                                    <td className="px-4 py-3">
                                         <button onClick={() => setRemoving(p)}
-                                            className="text-xs text-red-500 hover:underline">Remove</button>
+                                            className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">Remove</button>
                                     </td>
                                 </tr>
                             ))}

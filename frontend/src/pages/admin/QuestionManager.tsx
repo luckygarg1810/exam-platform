@@ -44,45 +44,52 @@ export const QuestionManager: React.FC<{ examId: string }> = ({ examId }) => {
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-gray-500">{questions.length} question(s) · {totalMarks} total marks</p>
+                <div className="flex items-center gap-2">
+                    <p className="text-sm text-violet-600 font-semibold">{questions.length} question(s)</p>
+                    <span className="text-gray-300">·</span>
+                    <p className="text-sm text-gray-500">{totalMarks} total marks</p>
+                </div>
                 <Button size="sm" onClick={() => setShowAdd(true)}>+ Add Question</Button>
             </div>
 
             {loading ? (
                 <div className="flex justify-center py-8"><Spinner /></div>
             ) : questions.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-200">
-                    No questions yet.
+                    <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-100 shadow-card">
+                    <div className="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-6 h-6 text-violet-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <p className="text-sm">No questions yet. Add the first one!</p>
                 </div>
             ) : (
                 <div className="space-y-3">
                     {questions.map((q, i) => (
-                        <div key={q.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                        <div key={q.id} className="bg-white rounded-2xl border border-gray-100 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 p-4">
                             <div className="flex items-start gap-3">
-                                <span className="text-xs font-bold text-gray-400 w-6 flex-shrink-0">{i + 1}.</span>
+                                <span className="text-xs font-black text-white bg-violet-600 w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0">{i + 1}</span>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2">
-                                        <p className="text-sm font-medium text-gray-900">{q.text}</p>
+                                        <p className="text-sm font-semibold text-gray-900">{q.text}</p>
                                         <div className="flex gap-2 flex-shrink-0">
                                             <Badge variant={q.type === 'MCQ' ? 'blue' : 'purple'} label={q.type} />
-                                            <span className="text-xs text-gray-500">{q.marks} mk</span>
+                                            <span className="text-xs font-bold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg">{q.marks} mk</span>
                                         </div>
                                     </div>
                                     {q.options && q.options.length > 0 && (
                                         <div className="mt-2 grid grid-cols-2 gap-1">
                                             {q.options.map(o => (
-                                                <span key={o.key} className={`text-xs px-2 py-0.5 rounded ${o.key === q.correctAnswer ? 'bg-green-100 text-green-800 font-medium' : 'text-gray-500'}`}>
+                                                <span key={o.key} className={`text-xs px-2 py-1 rounded-lg ${o.key === q.correctAnswer ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-200' : 'bg-gray-50 text-gray-500 border border-gray-100'}`}>
                                                     {o.key}: {o.text}
                                                 </span>
                                             ))}
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex gap-2 flex-shrink-0">
+                                <div className="flex gap-3 flex-shrink-0">
                                     <button onClick={() => { setEditing(q); setShowAdd(true) }}
-                                        className="text-xs text-blue-600 hover:underline">Edit</button>
+                                        className="text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors">Edit</button>
                                     <button onClick={() => setDeleting(q)}
-                                        className="text-xs text-red-500 hover:underline">Delete</button>
+                                        className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">Delete</button>
                                 </div>
                             </div>
                         </div>
@@ -169,7 +176,7 @@ const QuestionForm: React.FC<{
                         ))}
                     </div>
                     <button type="button" onClick={() => setOptions(o => [...o, emptyOption()])}
-                        className="text-xs text-blue-600 hover:underline mt-1">+ Add option</button>
+                        className="text-xs font-semibold text-violet-600 hover:text-violet-800 mt-1 transition-colors">+ Add option</button>
                 </div>
             )}
 

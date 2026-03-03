@@ -18,8 +18,14 @@ const sizes = {
 export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, size = 'md' }) => {
     useEffect(() => {
         const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-        if (open) document.addEventListener('keydown', handler)
-        return () => document.removeEventListener('keydown', handler)
+        if (open) {
+            document.addEventListener('keydown', handler)
+            document.body.style.overflow = 'hidden'
+        }
+        return () => {
+            document.removeEventListener('keydown', handler)
+            document.body.style.overflow = ''
+        }
     }, [open, onClose])
 
     if (!open) return null
@@ -27,19 +33,35 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, si
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-0">
-                <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
-                <div className={`relative bg-white rounded-xl shadow-xl w-full ${sizes[size]} p-6 z-10`}>
-                    {title && (
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                    )}
-                    {children}
+                {/* Backdrop */}
+                <div
+                    className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
+                    onClick={onClose}
+                />
+                {/* Panel */}
+                <div className={[
+                    'relative bg-white rounded-2xl shadow-violet-lg w-full z-10 animate-scale-in',
+                    'border border-violet-100 overflow-hidden',
+                    sizes[size],
+                ].join(' ')}>
+                    {/* Top gradient stripe */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-purple-500" />
+                    <div className="p-6 pt-7">
+                        {title && (
+                            <div className="flex items-center justify-between mb-5">
+                                <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+                                <button
+                                    onClick={onClose}
+                                    className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                                >
+                                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+                        {children}
+                    </div>
                 </div>
             </div>
         </div>
