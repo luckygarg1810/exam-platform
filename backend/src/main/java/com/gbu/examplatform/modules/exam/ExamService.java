@@ -149,6 +149,9 @@ public class ExamService {
         if (exam.getStatus() == Exam.ExamStatus.ONGOING) {
             throw new BusinessException("Cannot delete an ongoing exam");
         }
+        if (exam.getStatus() == Exam.ExamStatus.COMPLETED) {
+            throw new BusinessException("Cannot delete a completed exam");
+        }
         exam.setIsDeleted(true);
         examRepository.save(exam);
     }

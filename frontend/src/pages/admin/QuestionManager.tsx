@@ -8,7 +8,7 @@ import { listQuestions, createQuestion, updateQuestion, deleteQuestion } from '.
 import { Question, CreateQuestionRequest, QuestionType } from '../../types'
 import toast from 'react-hot-toast'
 
-export const QuestionManager: React.FC<{ examId: string }> = ({ examId }) => {
+export const QuestionManager: React.FC<{ examId: string; isCompleted?: boolean }> = ({ examId, isCompleted = false }) => {
     const [questions, setQuestions] = useState<Question[]>([])
     const [loading, setLoading] = useState(true)
     const [showAdd, setShowAdd] = useState(false)
@@ -49,13 +49,19 @@ export const QuestionManager: React.FC<{ examId: string }> = ({ examId }) => {
                     <span className="text-gray-300">·</span>
                     <p className="text-sm text-gray-500">{totalMarks} total marks</p>
                 </div>
-                <Button size="sm" onClick={() => setShowAdd(true)}>+ Add Question</Button>
+                {isCompleted ? (
+                    <span className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+                        Exam completed — questions are locked
+                    </span>
+                ) : (
+                    <Button size="sm" onClick={() => setShowAdd(true)}>+ Add Question</Button>
+                )}
             </div>
 
             {loading ? (
                 <div className="flex justify-center py-8"><Spinner /></div>
             ) : questions.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-100 shadow-card">
+                <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-100 shadow-card">
                     <div className="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center mx-auto mb-3">
                         <svg className="w-6 h-6 text-violet-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
@@ -86,10 +92,14 @@ export const QuestionManager: React.FC<{ examId: string }> = ({ examId }) => {
                                     )}
                                 </div>
                                 <div className="flex gap-3 flex-shrink-0">
-                                    <button onClick={() => { setEditing(q); setShowAdd(true) }}
-                                        className="text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors">Edit</button>
-                                    <button onClick={() => setDeleting(q)}
-                                        className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">Delete</button>
+                                    {!isCompleted && (
+                                        <>
+                                            <button onClick={() => { setEditing(q); setShowAdd(true) }}
+                                                className="text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors">Edit</button>
+                                            <button onClick={() => setDeleting(q)}
+                                                className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">Delete</button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>

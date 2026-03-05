@@ -6,7 +6,7 @@ import { getProctorsForExam, assignProctor, unassignProctor } from '../../api/pr
 import { ExamProctorAssignment } from '../../types'
 import toast from 'react-hot-toast'
 
-export const ManageProctors: React.FC<{ examId: string }> = ({ examId }) => {
+export const ManageProctors: React.FC<{ examId: string; isCompleted?: boolean }> = ({ examId, isCompleted = false }) => {
     const [proctors, setProctors] = useState<ExamProctorAssignment[]>([])
     const [loading, setLoading] = useState(true)
     const [proctorId, setProctorId] = useState('')
@@ -41,6 +41,12 @@ export const ManageProctors: React.FC<{ examId: string }> = ({ examId }) => {
 
     return (
         <div>
+            {isCompleted && (
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold rounded-xl px-4 py-3 mb-5">
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Exam is completed — proctor assignments are locked.
+                </div>
+            )}
             <form onSubmit={handleAssign} className="bg-white rounded-2xl border border-gray-100 shadow-card p-5 mb-5">
                 <div className="flex items-center gap-2 mb-3">
                     <div className="w-7 h-7 bg-violet-100 rounded-lg flex items-center justify-center">
@@ -49,9 +55,9 @@ export const ManageProctors: React.FC<{ examId: string }> = ({ examId }) => {
                     <h3 className="text-sm font-bold text-gray-900">Assign Proctor</h3>
                 </div>
                 <div className="flex gap-2">
-                    <input type="number" min={1} required className="input" value={proctorId}
+                    <input type="number" min={1} required className="input" value={proctorId} disabled={isCompleted}
                         onChange={e => setProctorId(e.target.value)} placeholder="Proctor User ID" />
-                    <Button type="submit" loading={saving} size="sm">Assign</Button>
+                    <Button type="submit" loading={saving} size="sm" disabled={isCompleted}>Assign</Button>
                 </div>
             </form>
 
@@ -86,8 +92,10 @@ export const ManageProctors: React.FC<{ examId: string }> = ({ examId }) => {
                                         {p.assignedAt ? new Date(p.assignedAt).toLocaleDateString() : '—'}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <button onClick={() => setRemoving(p)}
-                                            className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">Remove</button>
+                                        {!isCompleted && (
+                                            <button onClick={() => setRemoving(p)}
+                                                className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">Remove</button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

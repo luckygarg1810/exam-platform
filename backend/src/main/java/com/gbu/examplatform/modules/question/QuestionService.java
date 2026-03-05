@@ -34,10 +34,11 @@ public class QuestionService {
         Exam exam = findExam(examId);
         examService.requireAdminOwnership(exam);
 
-        // Reject mutations to live exams — matches the guard on
-        // updateQuestion/deleteQuestion (Issue 46)
-        if (exam.getStatus() == Exam.ExamStatus.PUBLISHED || exam.getStatus() == Exam.ExamStatus.ONGOING) {
-            throw new BusinessException("Questions cannot be added once an exam is PUBLISHED or ONGOING");
+        // Reject mutations to live or finished exams
+        if (exam.getStatus() == Exam.ExamStatus.PUBLISHED
+                || exam.getStatus() == Exam.ExamStatus.ONGOING
+                || exam.getStatus() == Exam.ExamStatus.COMPLETED) {
+            throw new BusinessException("Questions cannot be added once an exam is PUBLISHED, ONGOING or COMPLETED");
         }
 
         if (request.getOptions() == null || request.getOptions().size() < 2) {
@@ -124,8 +125,10 @@ public class QuestionService {
             throw new BusinessException("Question does not belong to this exam");
         }
 
-        if (exam.getStatus() == Exam.ExamStatus.PUBLISHED || exam.getStatus() == Exam.ExamStatus.ONGOING) {
-            throw new BusinessException("Questions cannot be modified once an exam is PUBLISHED or ONGOING");
+        if (exam.getStatus() == Exam.ExamStatus.PUBLISHED
+                || exam.getStatus() == Exam.ExamStatus.ONGOING
+                || exam.getStatus() == Exam.ExamStatus.COMPLETED) {
+            throw new BusinessException("Questions cannot be modified once an exam is PUBLISHED, ONGOING or COMPLETED");
         }
 
         if (request.getText() != null)
@@ -155,8 +158,10 @@ public class QuestionService {
             throw new BusinessException("Question does not belong to this exam");
         }
 
-        if (exam.getStatus() == Exam.ExamStatus.PUBLISHED || exam.getStatus() == Exam.ExamStatus.ONGOING) {
-            throw new BusinessException("Questions cannot be deleted once an exam is PUBLISHED or ONGOING");
+        if (exam.getStatus() == Exam.ExamStatus.PUBLISHED
+                || exam.getStatus() == Exam.ExamStatus.ONGOING
+                || exam.getStatus() == Exam.ExamStatus.COMPLETED) {
+            throw new BusinessException("Questions cannot be deleted once an exam is PUBLISHED, ONGOING or COMPLETED");
         }
 
         questionRepository.delete(question);

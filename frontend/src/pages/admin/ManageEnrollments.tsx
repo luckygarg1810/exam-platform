@@ -6,7 +6,7 @@ import { listEnrollments, enrollStudent, bulkEnroll, unenrollStudent } from '../
 import { Enrollment } from '../../types'
 import toast from 'react-hot-toast'
 
-export const ManageEnrollments: React.FC<{ examId: string }> = ({ examId }) => {
+export const ManageEnrollments: React.FC<{ examId: string; isCompleted?: boolean }> = ({ examId, isCompleted = false }) => {
     const [enrollments, setEnrollments] = useState<Enrollment[]>([])
     const [loading, setLoading] = useState(true)
     const [studentRoll, setStudentRoll] = useState('')
@@ -56,6 +56,12 @@ export const ManageEnrollments: React.FC<{ examId: string }> = ({ examId }) => {
 
     return (
         <div>
+            {isCompleted && (
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold rounded-xl px-4 py-3 mb-5">
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Exam is completed — enrollment changes are disabled.
+                </div>
+            )}
             <div className="grid sm:grid-cols-2 gap-4 mb-6">
                 {/* Single enroll */}
                 <form onSubmit={handleEnroll} className="bg-white rounded-2xl border border-gray-100 shadow-card p-5">
@@ -66,9 +72,9 @@ export const ManageEnrollments: React.FC<{ examId: string }> = ({ examId }) => {
                         <h3 className="text-sm font-bold text-gray-900">Enroll Single Student</h3>
                     </div>
                     <div className="flex gap-2">
-                        <input type="text" required className="input" value={studentRoll}
+                        <input type="text" required className="input" value={studentRoll} disabled={isCompleted}
                             onChange={e => setStudentRoll(e.target.value)} placeholder="University Roll No. (e.g. 2021CS001)" />
-                        <Button type="submit" loading={saving} size="sm">Enroll</Button>
+                        <Button type="submit" loading={saving} size="sm" disabled={isCompleted}>Enroll</Button>
                     </div>
                 </form>
 
@@ -80,10 +86,10 @@ export const ManageEnrollments: React.FC<{ examId: string }> = ({ examId }) => {
                         </div>
                         <h3 className="text-sm font-bold text-gray-900">Bulk Enroll</h3>
                     </div>
-                    <textarea className="input mb-3 w-full" rows={3} value={bulkRolls}
+                    <textarea className="input mb-3 w-full" rows={3} value={bulkRolls} disabled={isCompleted}
                         onChange={e => setBulkRolls(e.target.value)}
                         placeholder="2021CS001, 2021CS002, 2021CS003 (comma or newline separated)" />
-                    <Button type="submit" loading={saving} size="sm">Bulk Enroll</Button>
+                    <Button type="submit" loading={saving} size="sm" disabled={isCompleted}>Bulk Enroll</Button>
                 </form>
             </div>
 
@@ -119,8 +125,10 @@ export const ManageEnrollments: React.FC<{ examId: string }> = ({ examId }) => {
                                         {en.enrolledAt ? new Date(en.enrolledAt).toLocaleDateString() : '—'}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <button onClick={() => setUnenrolling(en)}
-                                            className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">Remove</button>
+                                        {!isCompleted && (
+                                            <button onClick={() => setUnenrolling(en)}
+                                                className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">Remove</button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

@@ -91,6 +91,10 @@ public class ExamProctorService {
     @Transactional
     public void unassignProctor(UUID examId, UUID proctorId) {
         examService.requireAdminOwnership(examId);
+        Exam exam = findExam(examId);
+        if (exam.getStatus() == Exam.ExamStatus.COMPLETED) {
+            throw new BusinessException("Cannot unassign proctors from a completed exam");
+        }
         if (!examProctorRepository.existsByExamIdAndProctorId(examId, proctorId)) {
             throw new ResourceNotFoundException("ExamProctor",
                     "examId=" + examId + ", proctorId=" + proctorId);

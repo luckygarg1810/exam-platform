@@ -53,6 +53,8 @@ export const ExamManage: React.FC = () => {
         { id: 'results', label: 'Results' },
     ]
 
+    const isCompleted = exam.status === 'COMPLETED'
+
     return (
         <Layout>
             <button onClick={() => navigate('/admin')}
@@ -97,9 +99,13 @@ export const ExamManage: React.FC = () => {
                         {exam.status === 'DRAFT' && (
                             <Button size="sm" onClick={handlePublish}>Publish</Button>
                         )}
-                        <Button size="sm" variant="secondary" onClick={() => setShowEdit(true)}>Edit</Button>
+                        <div title={isCompleted ? 'Exam is completed — editing is disabled' : undefined}>
+                            <Button size="sm" variant="secondary" disabled={isCompleted} onClick={() => !isCompleted && setShowEdit(true)}>Edit</Button>
+                        </div>
                         <Button size="sm" variant="secondary" onClick={() => navigate(`/admin/monitor?examId=${eid}`)}>Live Monitor</Button>
-                        <Button size="sm" variant="danger" onClick={() => setShowDelete(true)}>Delete</Button>
+                        <div title={isCompleted ? 'Exam is completed — deletion is disabled' : undefined}>
+                            <Button size="sm" variant="danger" disabled={isCompleted} onClick={() => !isCompleted && setShowDelete(true)}>Delete</Button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -109,8 +115,8 @@ export const ExamManage: React.FC = () => {
                 {tabs.map(t => (
                     <button key={t.id} onClick={() => setTab(t.id)}
                         className={`px-5 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all duration-200 ${tab === t.id
-                                ? 'border-violet-600 text-violet-700'
-                                : 'border-transparent text-gray-500 hover:text-violet-600 hover:border-violet-200'
+                            ? 'border-violet-600 text-violet-700'
+                            : 'border-transparent text-gray-500 hover:text-violet-600 hover:border-violet-200'
                             }`}>
                         {t.label}
                     </button>
@@ -118,9 +124,9 @@ export const ExamManage: React.FC = () => {
             </div>
 
             <div className="animate-fade-in">
-                {tab === 'questions' && <QuestionManager examId={eid} />}
-                {tab === 'enrollments' && <ManageEnrollments examId={eid} />}
-                {tab === 'proctors' && <ManageProctors examId={eid} />}
+                {tab === 'questions' && <QuestionManager examId={eid} isCompleted={isCompleted} />}
+                {tab === 'enrollments' && <ManageEnrollments examId={eid} isCompleted={isCompleted} />}
+                {tab === 'proctors' && <ManageProctors examId={eid} isCompleted={isCompleted} />}
                 {tab === 'results' && <ExamResults examId={eid} />}
             </div>
 
