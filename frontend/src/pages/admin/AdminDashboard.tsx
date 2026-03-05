@@ -76,7 +76,7 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex gap-3">
-                        <Button variant="secondary" onClick={() => navigate('/admin/monitor')}
+                        <Button size="md" variant="secondary" onClick={() => navigate('/admin/monitor')}
                             icon={
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" />
@@ -84,7 +84,7 @@ export const AdminDashboard: React.FC = () => {
                             }>
                             Live Monitor
                         </Button>
-                        <Button onClick={() => setShowCreate(true)}
+                        <Button size="md" onClick={() => setShowCreate(true)}
                             icon={
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -115,7 +115,7 @@ export const AdminDashboard: React.FC = () => {
                 <div className="flex justify-center py-16">
                     <div className="text-center">
                         <Spinner size="lg" />
-                            <p className="text-gray-400 text-sm mt-3">Loading exams...</p>
+                        <p className="text-gray-400 text-sm mt-3">Loading exams...</p>
                     </div>
                 </div>
             ) : exams.length === 0 ? (
@@ -139,8 +139,8 @@ export const AdminDashboard: React.FC = () => {
                             >
                                 {/* Top accent bar */}
                                 <div className={`h-1 w-12 rounded-full mb-4 ${exam.status === 'ONGOING' ? 'bg-emerald-400' :
-                                        exam.status === 'PUBLISHED' ? 'bg-violet-500' :
-                                            exam.status === 'COMPLETED' ? 'bg-purple-500' : 'bg-gray-300'
+                                    exam.status === 'PUBLISHED' ? 'bg-violet-500' :
+                                        exam.status === 'COMPLETED' ? 'bg-purple-500' : 'bg-gray-300'
                                     }`} />
                                 <div className="flex items-start justify-between mb-2">
                                     <h3 className="font-bold text-gray-900 text-sm pr-2 leading-snug group-hover:text-violet-700 transition-colors">{exam.title}</h3>
