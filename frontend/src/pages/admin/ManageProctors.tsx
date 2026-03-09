@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 export const ManageProctors: React.FC<{ examId: string; isCompleted?: boolean }> = ({ examId, isCompleted = false }) => {
     const [proctors, setProctors] = useState<ExamProctorAssignment[]>([])
     const [loading, setLoading] = useState(true)
-    const [proctorId, setProctorId] = useState('')
+    const [proctorEmail, setProctorEmail] = useState('')
     const [saving, setSaving] = useState(false)
     const [removing, setRemoving] = useState<ExamProctorAssignment | null>(null)
 
@@ -20,12 +20,12 @@ export const ManageProctors: React.FC<{ examId: string; isCompleted?: boolean }>
 
     const handleAssign = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!proctorId.trim()) return
+        if (!proctorEmail.trim()) return
         setSaving(true)
         try {
-            await assignProctor(examId, proctorId)
+            await assignProctor(examId, proctorEmail)
             toast.success('Proctor assigned')
-            setProctorId(''); load()
+            setProctorEmail(''); load()
         } catch (err: any) { toast.error(err.response?.data?.message || 'Assignment failed') }
         finally { setSaving(false) }
     }
@@ -55,8 +55,8 @@ export const ManageProctors: React.FC<{ examId: string; isCompleted?: boolean }>
                     <h3 className="text-sm font-bold text-gray-900">Assign Proctor</h3>
                 </div>
                 <div className="flex gap-2">
-                    <input type="number" min={1} required className="input" value={proctorId} disabled={isCompleted}
-                        onChange={e => setProctorId(e.target.value)} placeholder="Proctor User ID" />
+                    <input type="email" required className="input" value={proctorEmail} disabled={isCompleted}
+                        onChange={e => setProctorEmail(e.target.value)} placeholder="Proctor Email" />
                     <Button type="submit" loading={saving} size="sm" disabled={isCompleted}>Assign</Button>
                 </div>
             </form>

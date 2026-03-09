@@ -9,14 +9,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.gbu.examplatform.modules.exam.dto.ExamDto;
+
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
  * REST API for proctor ↔ exam assignment management.
  *
  * Admin endpoints:
- * POST /api/exams/{examId}/proctors/{proctorId} — assign proctor to exam
+ * POST /api/exams/{examId}/proctors — assign proctor to exam (body: {"email":
+ * "..."})
  * DELETE /api/exams/{examId}/proctors/{proctorId} — unassign proctor
  * GET /api/exams/{examId}/proctors — list proctors for exam
  * GET /api/users/{proctorId}/assigned-exams — list exams for proctor
@@ -32,15 +36,15 @@ public class ExamProctorController {
     private final ExamProctorService examProctorService;
     private final SecurityUtils securityUtils;
 
-    /** Assign a proctor to an exam. */
-    @PostMapping("/api/exams/{examId}/proctors/{proctorId}")
+    /** Assign a proctor to an exam by their email address. */
+    @PostMapping("/api/exams/{examId}/proctors")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Assign a proctor to an exam (Admin only)")
+    @Operation(summary = "Assign a proctor to an exam by email (Admin only)")
     public ResponseEntity<ExamProctorService.ExamProctorDto> assignProctor(
             @PathVariable UUID examId,
-            @PathVariable UUID proctorId) {
+            @RequestBody Map<String, String> body) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(examProctorService.assignProctor(examId, proctorId));
+                .body(examProctorService.assignProctorByEmail(examId, body.get("email")));
     }
 
     /** Unassign a proctor from an exam. */
@@ -73,12 +77,12 @@ public class ExamProctorController {
         return ResponseEntity.ok(examProctorService.getExamsForProctor(proctorId));
     }
 
-    /** Proctor sees their own assigned exams. */
+    /** Proctor sees their own assigned exams (returns full ExamDto). */
     @GetMapping("/api/exams/my-assigned")
     @PreAuthorize("hasRole('PROCTOR')")
     @Operation(summary = "Get exams assigned to the current proctor")
-    public ResponseEntity<List<ExamProctorService.ExamProctorDto>> getMyAssignedExams() {
+    public ResponseEntity<List<ExamDto>> getMyAssignedExams() {
         UUID proctorId = securityUtils.getCurrentUserId();
-        return ResponseEntity.ok(examProctorService.getExamsForProctor(proctorId));
+        return ResponseEntity.ok(examProctorService.getMyAssignedExamDtos(proctorId));
     }
 }

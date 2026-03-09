@@ -56,6 +56,19 @@ public class ExamProctorService {
     // ── Assign ───────────────────────────────────────────────────────────────
 
     @Transactional
+    public ExamProctorDto assignProctorByEmail(UUID examId, String email) {
+        if (email == null || email.isBlank()) {
+            throw new BusinessException("Proctor email must not be empty");
+        }
+        User proctor = userRepository.findByEmail(email.strip())
+                .orElseThrow(() -> new ResourceNotFoundException("User", email));
+        if (proctor.getRole() != com.gbu.examplatform.modules.user.User.Role.PROCTOR) {
+            throw new BusinessException("User is not a proctor");
+        }
+        return assignProctor(examId, proctor.getId());
+    }
+
+    @Transactional
     public ExamProctorDto assignProctor(UUID examId, UUID proctorId) {
         Exam exam = findExam(examId);
         examService.requireAdminOwnership(exam);
@@ -122,6 +135,19 @@ public class ExamProctorService {
                         || (ep.getExam().getCreatedBy() != null
                                 && currentAdminId.equals(ep.getExam().getCreatedBy().getId())))
                 .map(this::toDto)
+                .toList();
+    }
+
+    /**
+     * Returns full ExamDto list for the given proctor — used by the proctor's
+     * own dashboard (my-assigned endpoint). No admin-ownership filter applied
+     * since the proctor is fetching their own assignments.
+     */
+    @Transactional(readOnly = true)
+    public List<com.gbu.examplatform.modules.exam.dto.ExamDto> getMyAssignedExamDtos(UUID proctorId) {
+        return examProctorRepository.findByProctorId(proctorId)
+                .stream()
+                .map(ep -> examService.toDto(ep.getExam()))
                 .toList();
     }
 

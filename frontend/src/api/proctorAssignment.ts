@@ -1,8 +1,8 @@
 import api from './client'
 import type { ExamProctorAssignment } from '../types'
 
-export const assignProctor = (examId: string, proctorId: string) =>
-    api.post<ExamProctorAssignment>(`/exams/${examId}/proctors/${proctorId}`).then((r) => r.data)
+export const assignProctor = (examId: string, email: string) =>
+    api.post<ExamProctorAssignment>(`/exams/${examId}/proctors`, { email }).then((r) => r.data)
 
 export const unassignProctor = (examId: string, proctorId: string) =>
     api.delete(`/exams/${examId}/proctors/${proctorId}`)
