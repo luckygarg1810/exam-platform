@@ -124,7 +124,7 @@ export const ExamManage: React.FC = () => {
             </div>
 
             <div className="animate-fade-in">
-                {tab === 'questions' && <QuestionManager examId={eid} isCompleted={isCompleted} />}
+                {tab === 'questions' && <QuestionManager examId={eid} isCompleted={isCompleted} totalMarks={exam.totalMarks} />}
                 {tab === 'enrollments' && <ManageEnrollments examId={eid} isCompleted={isCompleted} />}
                 {tab === 'proctors' && <ManageProctors examId={eid} isCompleted={isCompleted} />}
                 {tab === 'results' && <ExamResults examId={eid} />}

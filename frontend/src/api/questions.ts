@@ -15,3 +15,6 @@ export const updateQuestion = (examId: string, questionId: string, data: CreateQ
 
 export const deleteQuestion = (examId: string, questionId: string) =>
     api.delete(`/exams/${examId}/questions/${questionId}`)
+
+export const importQuestions = (targetExamId: string, sourceExamId: string, questionIds: string[]) =>
+    api.post<Question[]>(`/exams/${targetExamId}/questions/import`, { sourceExamId, questionIds }).then((r) => r.data)

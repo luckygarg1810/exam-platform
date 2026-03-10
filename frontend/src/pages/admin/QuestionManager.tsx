@@ -4,16 +4,18 @@ import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { Spinner } from '../../components/ui/Spinner'
 import { Badge } from '../../components/ui/Badge'
+import { ImportQuestionsModal } from '../../components/exam/ImportQuestionsModal'
 import { listQuestions, createQuestion, updateQuestion, deleteQuestion } from '../../api/questions'
 import { Question, CreateQuestionRequest, QuestionType } from '../../types'
 import toast from 'react-hot-toast'
 
-export const QuestionManager: React.FC<{ examId: string; isCompleted?: boolean }> = ({ examId, isCompleted = false }) => {
+export const QuestionManager: React.FC<{ examId: string; isCompleted?: boolean; totalMarks?: number }> = ({ examId, isCompleted = false, totalMarks = 0 }) => {
     const [questions, setQuestions] = useState<Question[]>([])
     const [loading, setLoading] = useState(true)
     const [showAdd, setShowAdd] = useState(false)
     const [editing, setEditing] = useState<Question | null>(null)
     const [deleting, setDeleting] = useState<Question | null>(null)
+    const [showImport, setShowImport] = useState(false)
 
     const load = () =>
         listQuestions(examId).then(p => setQuestions(p.content ?? [])).catch(() => toast.error('Failed to load questions')).finally(() => setLoading(false))
@@ -39,7 +41,7 @@ export const QuestionManager: React.FC<{ examId: string; isCompleted?: boolean }
         catch (e: any) { toast.error(e.response?.data?.message || 'Delete failed') }
     }
 
-    const totalMarks = questions.reduce((s, q) => s + q.marks, 0)
+    const usedMarks = questions.reduce((s, q) => s + q.marks, 0)
 
     return (
         <div>
@@ -47,14 +49,17 @@ export const QuestionManager: React.FC<{ examId: string; isCompleted?: boolean }
                 <div className="flex items-center gap-2">
                     <p className="text-sm text-violet-600 font-semibold">{questions.length} question(s)</p>
                     <span className="text-gray-300">·</span>
-                    <p className="text-sm text-gray-500">{totalMarks} total marks</p>
+                    <p className="text-sm text-gray-500">{usedMarks} total marks</p>
                 </div>
                 {isCompleted ? (
                     <span className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
                         Exam completed — questions are locked
                     </span>
                 ) : (
-                    <Button size="sm" onClick={() => setShowAdd(true)}>+ Add Question</Button>
+                    <div className="flex items-center gap-2">
+                        <Button size="sm" variant="secondary" onClick={() => setShowImport(true)}>Import Questions</Button>
+                        <Button size="sm" onClick={() => setShowAdd(true)}>+ Add Question</Button>
+                    </div>
                 )}
             </div>
 
@@ -115,6 +120,15 @@ export const QuestionManager: React.FC<{ examId: string; isCompleted?: boolean }
             <ConfirmDialog open={!!deleting} title="Delete Question"
                 message={`Delete this question? This cannot be undone.`}
                 onConfirm={handleDelete} onCancel={() => setDeleting(null)} />
+
+            <ImportQuestionsModal
+                open={showImport}
+                targetExamId={examId}
+                targetTotalMarks={totalMarks}
+                usedMarks={usedMarks}
+                onImported={load}
+                onClose={() => setShowImport(false)}
+            />
         </div>
     )
 }

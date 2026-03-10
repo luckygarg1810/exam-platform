@@ -69,4 +69,20 @@ public class QuestionController {
         questionService.deleteQuestion(examId, questionId);
         return ResponseEntity.ok(Map.of("message", "Question deleted successfully"));
     }
+
+    @PostMapping("/import")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Import questions from another exam (Admin)")
+    public ResponseEntity<List<QuestionDto>> importQuestions(
+            @PathVariable UUID examId,
+            @RequestBody ImportQuestionsRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(questionService.importQuestions(examId, request.getSourceExamId(), request.getQuestionIds()));
+    }
+
+    @lombok.Data
+    static class ImportQuestionsRequest {
+        private UUID sourceExamId;
+        private List<UUID> questionIds;
+    }
 }

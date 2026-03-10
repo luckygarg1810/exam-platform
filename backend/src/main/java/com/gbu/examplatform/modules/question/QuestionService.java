@@ -167,6 +167,87 @@ public class QuestionService {
         questionRepository.delete(question);
     }
 
+    /**
+     * Bulk-import a subset of questions from a source exam into a target exam.
+     *
+     * Checks enforced:
+     * 1. Target exam must be DRAFT (not editable otherwise).
+     * 2. Caller must own both exams.
+     * 3. Source exam must be different from the target.
+     * 4. Every question ID must belong to the source exam.
+     * 5. Sum of imported question marks must not exceed the target exam's
+     * totalMarks
+     * minus marks already assigned to existing questions.
+     *
+     * @return list of newly created QuestionDto copies in the target exam.
+     */
+    @Transactional
+    public List<QuestionDto> importQuestions(UUID targetExamId, UUID sourceExamId, List<UUID> questionIds) {
+        if (questionIds == null || questionIds.isEmpty()) {
+            throw new BusinessException("No questions selected for import");
+        }
+
+        Exam target = findExam(targetExamId);
+        examService.requireAdminOwnership(target);
+
+        if (target.getStatus() != Exam.ExamStatus.DRAFT) {
+            throw new BusinessException("Questions can only be imported into a DRAFT exam");
+        }
+
+        if (targetExamId.equals(sourceExamId)) {
+            throw new BusinessException("Cannot import questions from the same exam");
+        }
+
+        Exam source = findExam(sourceExamId);
+        examService.requireAdminOwnership(source);
+
+        // Deduplicate requested IDs
+        List<UUID> distinctIds = questionIds.stream().distinct().collect(Collectors.toList());
+
+        // Fetch questions and verify they all belong to source exam
+        List<Question> toImport = questionRepository.findAllById(distinctIds);
+        if (toImport.size() != distinctIds.size()) {
+            throw new BusinessException("One or more selected questions do not exist");
+        }
+        boolean allBelongToSource = toImport.stream()
+                .allMatch(q -> q.getExam().getId().equals(sourceExamId));
+        if (!allBelongToSource) {
+            throw new BusinessException("One or more selected questions do not belong to the source exam");
+        }
+
+        // Marks capacity check
+        int importedMarksSum = toImport.stream().mapToInt(Question::getMarks).sum();
+        int existingMarksSum = questionRepository.findByExamIdOrderByOrderIndexAsc(targetExamId)
+                .stream().mapToInt(Question::getMarks).sum();
+        int capacity = target.getTotalMarks() - existingMarksSum;
+        if (importedMarksSum > capacity) {
+            throw new BusinessException(
+                    "Imported questions total " + importedMarksSum + " marks but target exam only has "
+                            + capacity + " marks remaining (exam total: " + target.getTotalMarks() + ")");
+        }
+
+        // Copy each question into the target exam
+        int nextOrder = (int) questionRepository.countByExamId(targetExamId) + 1;
+        List<Question> copies = new ArrayList<>();
+        for (Question src : toImport) {
+            Question copy = Question.builder()
+                    .exam(target)
+                    .text(src.getText())
+                    .type(src.getType())
+                    .options(src.getOptions() != null ? new ArrayList<>(src.getOptions()) : null)
+                    .correctAnswer(src.getCorrectAnswer())
+                    .marks(src.getMarks())
+                    .negativeMarks(src.getNegativeMarks())
+                    .orderIndex(nextOrder++)
+                    .build();
+            copies.add(copy);
+        }
+
+        return questionRepository.saveAll(copies).stream()
+                .map(q -> toDto(q, false))
+                .collect(Collectors.toList());
+    }
+
     private Exam findExam(UUID examId) {
         return examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
