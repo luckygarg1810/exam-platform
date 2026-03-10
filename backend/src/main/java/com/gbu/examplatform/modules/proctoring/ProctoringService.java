@@ -30,7 +30,11 @@ public class ProctoringService {
     @Transactional(readOnly = true)
     public ViolationSummary getSessionSummary(UUID sessionId) {
         return summaryRepository.findBySession_Id(sessionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Violation summary", sessionId.toString()));
+                .orElseGet(() -> {
+                    // Summary row may not exist for older sessions — return an empty default
+                    // so the proctor dashboard can still open without a 404 error
+                    return new ViolationSummary();
+                });
     }
 
     @Transactional

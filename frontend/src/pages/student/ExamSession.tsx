@@ -344,9 +344,9 @@ export const ExamSession: React.FC = () => {
                         <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Camera</p>
                         <div className="w-full aspect-video bg-black rounded-lg overflow-hidden relative">
                             <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-                            <span className="absolute bottom-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                            <span className={`absolute bottom-1 right-1 w-2 h-2 rounded-full ${ws.connected ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
                         </div>
-                        <p className="text-xs text-gray-500 mt-1 text-center">Proctored</p>
+                        <p className={`text-xs mt-1 text-center ${ws.connected ? 'text-green-400' : 'text-red-400'}`}>{ws.connected ? 'Proctored' : 'Connecting…'}</p>
                     </div>
 
                     <Button

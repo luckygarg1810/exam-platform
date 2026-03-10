@@ -14,8 +14,18 @@ export const AdminDashboard: React.FC = () => {
     const [exams, setExams] = useState<Exam[]>([])
     const [loading, setLoading] = useState(true)
     const [showCreate, setShowCreate] = useState(false)
+    const [cloneInitial, setCloneInitial] = useState<Partial<CreateExamRequest> | undefined>()
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null)
     const [page, setPage] = useState(0)
     const [totalPages, setTotalPages] = useState(1)
+
+    // Close dropdown when clicking anywhere outside
+    useEffect(() => {
+        if (!openMenuId) return
+        const handler = () => setOpenMenuId(null)
+        document.addEventListener('click', handler)
+        return () => document.removeEventListener('click', handler)
+    }, [openMenuId])
 
     const load = async (p = 0) => {
         setLoading(true)
@@ -34,11 +44,28 @@ export const AdminDashboard: React.FC = () => {
         try {
             await createExam(req)
             setShowCreate(false)
+            setCloneInitial(undefined)
             toast.success('Exam created!')
             load(0)
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Create failed')
         }
+    }
+
+    const handleClone = (exam: Exam, e: React.MouseEvent) => {
+        e.stopPropagation()
+        setOpenMenuId(null)
+        setCloneInitial({
+            title: exam.title,
+            description: exam.description,
+            subject: exam.subject,
+            durationMinutes: exam.durationMinutes,
+            totalMarks: exam.totalMarks,
+            passingMarks: exam.passingMarks,
+            shuffleQuestions: exam.shuffleQuestions,
+            shuffleOptions: exam.shuffleOptions,
+        })
+        setShowCreate(true)
     }
 
     const handlePublish = async (id: string, e: React.MouseEvent) => {
@@ -134,7 +161,7 @@ export const AdminDashboard: React.FC = () => {
                         {exams.map((exam, i) => (
                             <div
                                 key={exam.id}
-                                onClick={() => navigate(`/admin/exams/${exam.id}`)}
+                                onClick={() => { if (openMenuId === exam.id) { setOpenMenuId(null); return; } navigate(`/admin/exams/${exam.id}`) }}
                                 className={`group bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 cursor-pointer animate-fade-in-up animate-fill-both stagger-${Math.min(i + 1, 6)}`}
                             >
                                 {/* Top accent bar */}
@@ -144,7 +171,31 @@ export const AdminDashboard: React.FC = () => {
                                     }`} />
                                 <div className="flex items-start justify-between mb-2">
                                     <h3 className="font-bold text-gray-900 text-sm pr-2 leading-snug group-hover:text-violet-700 transition-colors">{exam.title}</h3>
-                                    <Badge variant={examStatusBadge(exam.status)} label={exam.status} />
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant={examStatusBadge(exam.status)} label={exam.status} />
+                                        {/* 3-dot context menu */}
+                                        <div className="relative" onClick={e => e.stopPropagation()}>
+                                            <button
+                                                onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === exam.id ? null : exam.id) }}
+                                                className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                                                title="More options"
+                                            >
+                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                    <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
+                                                </svg>
+                                            </button>
+                                            {openMenuId === exam.id && (
+                                                <div className="absolute right-0 top-8 z-20 bg-white rounded-xl border border-gray-100 shadow-lg py-1 min-w-[160px]">
+                                                    <button
+                                                        onClick={e => handleClone(exam, e)}
+                                                        className="w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition-colors text-left whitespace-nowrap"
+                                                    >
+                                                        Create Similar Exam
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                                 <p className="text-xs text-gray-400 line-clamp-2 mb-4 leading-relaxed">{exam.description}</p>
                                 <div className="flex gap-4 text-xs text-gray-400 mb-4">
@@ -184,8 +235,8 @@ export const AdminDashboard: React.FC = () => {
                 </>
             )}
 
-            <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create New Exam" size="lg">
-                <CreateExamForm onSubmit={handleCreate} onCancel={() => setShowCreate(false)} />
+            <Modal open={showCreate} onClose={() => { setShowCreate(false); setCloneInitial(undefined) }} title={cloneInitial ? 'Create Similar Exam' : 'Create New Exam'} size="lg">
+                <CreateExamForm onSubmit={handleCreate} onCancel={() => { setShowCreate(false); setCloneInitial(undefined) }} initial={cloneInitial} />
             </Modal>
         </Layout>
     )

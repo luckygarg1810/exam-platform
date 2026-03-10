@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 
@@ -15,6 +15,7 @@ interface UseWebSocketOptions {
 export function useWebSocket(options: UseWebSocketOptions) {
     const clientRef = useRef<Client | null>(null)
     const connectedRef = useRef(false)
+    const [connected, setConnected] = useState(false)
 
     const send = useCallback((destination: string, body: Record<string, unknown>) => {
         if (clientRef.current?.connected) {
@@ -51,6 +52,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
             reconnectDelay: 5000,
             onConnect: () => {
                 connectedRef.current = true
+                setConnected(true)
 
                 // Subscribe to session-specific channels
                 if (options.sessionId) {
@@ -85,7 +87,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
                     })
                 }
             },
-            onDisconnect: () => { connectedRef.current = false },
+            onDisconnect: () => { connectedRef.current = false; setConnected(false) },
             onStompError: (frame) => console.error('STOMP error', frame),
         })
 
@@ -95,9 +97,10 @@ export function useWebSocket(options: UseWebSocketOptions) {
         return () => {
             client.deactivate()
             connectedRef.current = false
+            setConnected(false)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [options.sessionId, options.examId])
 
-    return { sendFrame, sendAudio, sendEvent, sendHeartbeat, isConnected: () => connectedRef.current }
+    return { sendFrame, sendAudio, sendEvent, sendHeartbeat, isConnected: () => connectedRef.current, connected }
 }
