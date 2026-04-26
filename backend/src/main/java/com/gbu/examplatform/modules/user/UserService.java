@@ -47,6 +47,14 @@ public class UserService {
             user.setDepartment(request.getDepartment());
         if (request.getUniversityRoll() != null)
             user.setUniversityRoll(request.getUniversityRoll());
+        if (request.getMobileNumber() != null)
+            user.setMobileNumber(request.getMobileNumber());
+        if (request.getFathersName() != null)
+            user.setFathersName(request.getFathersName());
+        if (request.getProgramme() != null)
+            user.setProgramme(request.getProgramme());
+        if (request.getYearOfAdmission() != null)
+            user.setYearOfAdmission(request.getYearOfAdmission());
 
         return toDto(userRepository.save(user));
     }
@@ -152,6 +160,10 @@ public class UserService {
                 .profilePhotoUrl(photoUrl)
                 .isActive(user.getIsActive())
                 .createdAt(user.getCreatedAt())
+                .mobileNumber(user.getMobileNumber())
+                .fathersName(user.getFathersName())
+                .programme(user.getProgramme())
+                .yearOfAdmission(user.getYearOfAdmission())
                 .build();
     }
 

@@ -13,5 +13,16 @@ export const changeRole = (userId: string, role: string) =>
 export const deleteUser = (userId: string) =>
     api.delete(`/users/${userId}`)
 
-export const updateProfile = (data: { name?: string; department?: string; universityRoll?: string }) =>
-    api.put<UserProfile>('/users/me', data).then((r) => r.data)
+export const updateProfile = (data: {
+    name?: string; department?: string; universityRoll?: string
+    mobileNumber?: string; fathersName?: string
+    programme?: string; yearOfAdmission?: number
+}) => api.put<UserProfile>('/users/me', data).then((r) => r.data)
+
+export const uploadProfilePhoto = (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return api.post<{ url: string }>('/users/me/photo', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data)
+}

@@ -95,9 +95,11 @@ export const Header: React.FC = () => {
 
                     {/* ── Logo ── */}
                     <Link to={dashboardPath} className="flex items-center gap-3 group">
-                        <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-200">
-                            <span className="text-white font-black text-sm tracking-tight">GBU</span>
-                        </div>
+                        <img
+                            src="/gbu-logo.png"
+                            alt="GBU Logo"
+                            className="w-9 h-9 object-contain rounded-xl group-hover:scale-105 transition-transform duration-200"
+                        />
                         <div className="hidden sm:flex flex-col leading-none">
                             <span className="font-bold text-gray-900 text-[15px] tracking-tight">Exam Platform</span>
                             <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Gautam Buddha University</span>
@@ -182,8 +184,26 @@ export const Header: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* Sign out */}
-                                        <div className="p-2">
+                                        {/* My Profile + Sign out */}
+                                        <div className="p-2 space-y-0.5">
+                                            {/* My Profile link */}
+                                            <Link
+                                                to="/profile"
+                                                onClick={() => setDropdownOpen(false)}
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition-colors font-medium group"
+                                            >
+                                                <div className="w-7 h-7 rounded-lg bg-violet-50 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
+                                                    <svg className="w-4 h-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                    </svg>
+                                                </div>
+                                                My Profile
+                                            </Link>
+
+                                            {/* Divider */}
+                                            <div className="my-1 border-t border-gray-100" />
+
+                                            {/* Sign out */}
                                             <button
                                                 onClick={handleLogout}
                                                 disabled={loggingOut}

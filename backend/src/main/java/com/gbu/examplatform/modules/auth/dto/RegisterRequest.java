@@ -25,6 +25,19 @@ public class RegisterRequest {
     @Size(max = 100, message = "Department must be under 100 characters")
     private String department;
 
+    @Pattern(regexp = "^[6-9]\\d{9}$", message = "Enter a valid 10-digit Indian mobile number")
+    private String mobileNumber;
+
+    @Size(max = 150, message = "Father's name must be under 150 characters")
+    private String fathersName;
+
+    @Size(max = 100, message = "Programme must be under 100 characters")
+    private String programme;
+
+    @Min(value = 2000, message = "Year of admission must be 2000 or later")
+    @Max(value = 2100, message = "Year of admission seems invalid")
+    private Integer yearOfAdmission;
+
     // Required for STUDENT self-registration; validated in AuthService
     private MultipartFile photo;
 }

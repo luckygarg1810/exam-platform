@@ -67,6 +67,10 @@ public class AuthService {
                 .role(User.Role.STUDENT)
                 .universityRoll(request.getUniversityRoll())
                 .department(request.getDepartment())
+                .mobileNumber(request.getMobileNumber())
+                .fathersName(request.getFathersName())
+                .programme(request.getProgramme())
+                .yearOfAdmission(request.getYearOfAdmission())
                 .isActive(true)
                 .build();
 
@@ -205,7 +209,8 @@ public class AuthService {
     }
 
     private String getPhotoExt(String filename) {
-        if (filename == null || !filename.contains(".")) return ".jpg";
+        if (filename == null || !filename.contains("."))
+            return ".jpg";
         return filename.substring(filename.lastIndexOf("."));
     }
 

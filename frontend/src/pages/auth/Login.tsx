@@ -37,8 +37,8 @@ export const Login: React.FC = () => {
             <div className="w-full max-w-md animate-fade-in-up">
                 {/* Logo */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-violet-600 to-purple-600 rounded-2xl shadow-violet mb-4">
-                        <span className="text-white font-black text-lg tracking-tight">GBU</span>
+                    <div className="inline-flex items-center justify-center mb-4">
+                        <img src="/gbu-logo.png" alt="GBU Logo" className="w-16 h-16 object-contain" />
                     </div>
                     <h1 className="text-2xl font-black text-gray-900 tracking-tight">Welcome back</h1>
                     <p className="text-gray-500 text-sm mt-1">Sign in to your Exam Platform account</p>

@@ -53,7 +53,7 @@ export const StudentDashboard: React.FC = () => {
                         )}
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-gray-900">Welcome back, {user?.name?.split(' ')[0]} 👋</h1>
+                        <h1 className="text-xl font-black text-gray-900">Welcome back, {user?.name?.split(' ')[0]}</h1>
                         <p className="text-gray-500 text-sm mt-0.5">{user?.universityRoll} &middot; {user?.department}</p>
                     </div>
                 </div>

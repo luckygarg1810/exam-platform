@@ -19,4 +19,10 @@ public class UserProfileDto {
     private String profilePhotoUrl;
     private Boolean isActive;
     private Instant createdAt;
+
+    // Extended student fields
+    private String mobileNumber;
+    private String fathersName;
+    private String programme;
+    private Integer yearOfAdmission;
 }

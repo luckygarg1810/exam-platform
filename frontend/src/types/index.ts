@@ -12,6 +12,8 @@ export interface TokenResponse {
 export interface RegisterRequest {
   name: string; email: string; password: string
   universityRoll?: string; department?: string
+  mobileNumber?: string; fathersName?: string
+  programme?: string; yearOfAdmission?: number
 }
 export interface LoginRequest { email: string; password: string }
 // ─── User ─────────────────────────────────────────────────────────────────────
@@ -20,6 +22,8 @@ export interface UserProfile {
   id: string; name: string; email: string; role: UserRole
   universityRoll?: string; department?: string
   profilePhotoUrl?: string; isActive?: boolean; createdAt?: string
+  mobileNumber?: string; fathersName?: string
+  programme?: string; yearOfAdmission?: number
 }
 // ─── Exam ─────────────────────────────────────────────────────────────────────
 export type ExamStatus = 'DRAFT' | 'PUBLISHED' | 'ONGOING' | 'COMPLETED'

@@ -15,6 +15,7 @@ import { StudentDashboard } from './pages/student/StudentDashboard'
 import { ExamDetail } from './pages/student/ExamDetail'
 import { ExamSession } from './pages/student/ExamSession'
 import { Results } from './pages/student/Results'
+import { Profile } from './pages/student/Profile'
 
 // Admin pages
 import { AdminDashboard } from './pages/admin/AdminDashboard'
@@ -69,9 +70,7 @@ const AppInner: React.FC = () => {
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="text-center animate-fade-in-up">
                     <div className="mx-auto w-16 h-16 mb-6">
-                        <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-md">
-                            <span className="text-white font-black text-xl tracking-tight">GBU</span>
-                        </div>
+                        <img src="/gbu-logo.png" alt="GBU Logo" className="w-16 h-16 object-contain" />
                     </div>
                     <Spinner size="lg" className="mx-auto text-violet-500" />
                     <p className="mt-4 text-gray-400 text-sm font-medium">Loading...</p>
@@ -98,6 +97,9 @@ const AppInner: React.FC = () => {
             <Route path="/student/exams/:examId" element={<ProtectedRoute role="STUDENT"><ExamDetail /></ProtectedRoute>} />
             <Route path="/student/session/:sessionId" element={<ProtectedRoute role="STUDENT"><ExamSession /></ProtectedRoute>} />
             <Route path="/student/results" element={<ProtectedRoute role="STUDENT"><Results /></ProtectedRoute>} />
+
+            {/* Shared profile route (any authenticated user) */}
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
             {/* Admin routes */}
             <Route path="/admin" element={<ProtectedRoute role="ADMIN"><AdminDashboard /></ProtectedRoute>} />

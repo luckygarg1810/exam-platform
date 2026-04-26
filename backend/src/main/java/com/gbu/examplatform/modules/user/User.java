@@ -45,6 +45,18 @@ public class User {
     @Column(name = "id_photo_path", length = 512)
     private String idPhotoPath;
 
+    @Column(name = "mobile_number", length = 15)
+    private String mobileNumber;
+
+    @Column(name = "fathers_name", length = 150)
+    private String fathersName;
+
+    @Column(name = "programme", length = 100)
+    private String programme;
+
+    @Column(name = "year_of_admission")
+    private Integer yearOfAdmission;
+
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
@@ -54,6 +66,6 @@ public class User {
     private Instant createdAt;
 
     public enum Role {
-        STUDENT, PROCTOR, ADMIN
+        STUDENT, TEACHER, ADMIN
     }
 }
