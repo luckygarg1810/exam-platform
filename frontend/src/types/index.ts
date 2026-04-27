@@ -39,7 +39,6 @@ export interface CreateExamRequest {
   startTime?: string; endTime?: string; durationMinutes: number
   totalMarks: number; passingMarks?: number
   shuffleQuestions?: boolean; shuffleOptions?: boolean; allowLateEntry?: boolean
-  maxAttempts?: number
 }
 // ─── Question ─────────────────────────────────────────────────────────────────
 export type QuestionType = 'MCQ' | 'SHORT_ANSWER'

@@ -19,7 +19,7 @@ import { Profile } from './pages/student/Profile'
 
 // Admin pages
 import { AdminDashboard } from './pages/admin/AdminDashboard'
-import { ExamManage } from './pages/admin/ExamManage'
+
 import { LiveMonitor } from './pages/admin/LiveMonitor'
 import { SessionMonitor } from './pages/admin/SessionMonitor'
 
