@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -78,6 +79,16 @@ public class QuestionController {
             @RequestBody ImportQuestionsRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(questionService.importQuestions(examId, request.getSourceExamId(), request.getQuestionIds()));
+    }
+
+    @PostMapping("/import/excel")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Import questions from an Excel file (Teacher)")
+    public ResponseEntity<List<QuestionDto>> importQuestionsFromExcel(
+            @PathVariable UUID examId,
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(questionService.importQuestionsFromExcel(examId, file));
     }
 
     @lombok.Data

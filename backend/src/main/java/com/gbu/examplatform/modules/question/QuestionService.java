@@ -248,6 +248,115 @@ public class QuestionService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public List<QuestionDto> importQuestionsFromExcel(UUID examId, org.springframework.web.multipart.MultipartFile file) {
+        Exam target = findExam(examId);
+        examService.requireOwnershipOrAdmin(target);
+
+        if (target.getStatus() != Exam.ExamStatus.DRAFT) {
+            throw new BusinessException("Questions can only be imported into a DRAFT exam");
+        }
+
+        List<Question> newQuestions = new ArrayList<>();
+        int importedMarksSum = 0;
+
+        try (java.io.InputStream is = file.getInputStream();
+             org.apache.poi.ss.usermodel.Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook(is)) {
+            
+            org.apache.poi.ss.usermodel.Sheet sheet = workbook.getSheetAt(0);
+            java.util.Iterator<org.apache.poi.ss.usermodel.Row> rows = sheet.iterator();
+
+            int rowNumber = 0;
+            while (rows.hasNext()) {
+                org.apache.poi.ss.usermodel.Row currentRow = rows.next();
+                if (rowNumber == 0) {
+                    rowNumber++;
+                    continue; // Skip header row
+                }
+
+                String text = getCellValue(currentRow.getCell(0));
+                String typeStr = getCellValue(currentRow.getCell(1));
+                String marksStr = getCellValue(currentRow.getCell(2));
+                String correctAnswer = getCellValue(currentRow.getCell(3));
+                
+                if (text.isBlank() || typeStr.isBlank() || marksStr.isBlank() || correctAnswer.isBlank()) {
+                    continue; // Skip incomplete rows
+                }
+
+                Question.QuestionType type = Question.QuestionType.valueOf(typeStr.trim().toUpperCase());
+                int marks = Double.valueOf(marksStr).intValue();
+
+                List<Question.McqOption> options = null;
+                if (type == Question.QuestionType.MCQ) {
+                    options = new ArrayList<>();
+                    String[] keys = {"A", "B", "C", "D"};
+                    for (int i = 0; i < 4; i++) {
+                        String optText = getCellValue(currentRow.getCell(4 + i));
+                        if (!optText.isBlank()) {
+                            Question.McqOption opt = new Question.McqOption();
+                            opt.setKey(keys[i]);
+                            opt.setText(optText);
+                            options.add(opt);
+                        }
+                    }
+                    if (options.size() < 2) {
+                        throw new BusinessException("Row " + (rowNumber + 1) + ": MCQ must have at least 2 options");
+                    }
+                }
+
+                Question q = Question.builder()
+                        .exam(target)
+                        .text(text)
+                        .type(type)
+                        .options(options)
+                        .correctAnswer(correctAnswer)
+                        .marks(marks)
+                        .negativeMarks(0.0)
+                        .build();
+
+                newQuestions.add(q);
+                importedMarksSum += marks;
+                rowNumber++;
+            }
+        } catch (Exception e) {
+            throw new BusinessException("Failed to parse Excel file: " + e.getMessage());
+        }
+
+        if (newQuestions.isEmpty()) {
+            throw new BusinessException("No valid questions found in the Excel file");
+        }
+
+        // Marks capacity check
+        int existingMarksSum = questionRepository.findByExamIdOrderByOrderIndexAsc(examId)
+                .stream().mapToInt(Question::getMarks).sum();
+        int capacity = target.getTotalMarks() - existingMarksSum;
+        if (importedMarksSum > capacity) {
+            throw new BusinessException(
+                    "Imported questions total " + importedMarksSum + " marks but target exam only has "
+                            + capacity + " marks remaining (exam total: " + target.getTotalMarks() + ")");
+        }
+
+        // Save
+        int nextOrder = (int) questionRepository.countByExamId(examId) + 1;
+        for (Question q : newQuestions) {
+            q.setOrderIndex(nextOrder++);
+        }
+
+        return questionRepository.saveAll(newQuestions).stream()
+                .map(q -> toDto(q, false))
+                .collect(Collectors.toList());
+    }
+
+    private String getCellValue(org.apache.poi.ss.usermodel.Cell cell) {
+        if (cell == null) return "";
+        switch (cell.getCellType()) {
+            case STRING: return cell.getStringCellValue();
+            case NUMERIC: return String.valueOf(cell.getNumericCellValue());
+            case BOOLEAN: return String.valueOf(cell.getBooleanCellValue());
+            default: return "";
+        }
+    }
+
     private Exam findExam(UUID examId) {
         return examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));

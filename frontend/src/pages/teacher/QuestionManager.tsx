@@ -5,7 +5,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { Spinner } from '../../components/ui/Spinner'
 import { Badge } from '../../components/ui/Badge'
 import { ImportQuestionsModal } from '../../components/exam/ImportQuestionsModal'
-import { listQuestions, createQuestion, updateQuestion, deleteQuestion } from '../../api/questions'
+import { listQuestions, createQuestion, updateQuestion, deleteQuestion, importQuestionsFromExcel } from '../../api/questions'
 import { Question, CreateQuestionRequest, QuestionType } from '../../types'
 import toast from 'react-hot-toast'
 
@@ -16,6 +16,9 @@ export const QuestionManager: React.FC<{ examId: string; isCompleted?: boolean; 
     const [editing, setEditing] = useState<Question | null>(null)
     const [deleting, setDeleting] = useState<Question | null>(null)
     const [showImport, setShowImport] = useState(false)
+    const [showExcelModal, setShowExcelModal] = useState(false)
+    const [uploadingExcel, setUploadingExcel] = useState(false)
+    const fileInputRef = React.useRef<HTMLInputElement>(null)
 
     const load = () =>
         listQuestions(examId).then(p => setQuestions(p.content ?? [])).catch(() => toast.error('Failed to load questions')).finally(() => setLoading(false))
@@ -41,6 +44,23 @@ export const QuestionManager: React.FC<{ examId: string; isCompleted?: boolean; 
         catch (e: any) { toast.error(e.response?.data?.message || 'Delete failed') }
     }
 
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        setUploadingExcel(true)
+        try {
+            await importQuestionsFromExcel(examId, file)
+            toast.success('Questions imported from Excel successfully')
+            load()
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to import from Excel')
+        } finally {
+            setUploadingExcel(false)
+            setShowExcelModal(false)
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+    }
+
     const usedMarks = questions.reduce((s, q) => s + q.marks, 0)
 
     return (
@@ -57,6 +77,8 @@ export const QuestionManager: React.FC<{ examId: string; isCompleted?: boolean; 
                     </span>
                 ) : (
                     <div className="flex items-center gap-2">
+                        <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx" className="hidden" />
+                        <Button size="sm" variant="secondary" onClick={() => setShowExcelModal(true)}>Upload Excel</Button>
                         <Button size="sm" variant="secondary" onClick={() => setShowImport(true)}>Import Questions</Button>
                         <Button size="sm" onClick={() => setShowAdd(true)}>+ Add Question</Button>
                     </div>
@@ -129,6 +151,36 @@ export const QuestionManager: React.FC<{ examId: string; isCompleted?: boolean; 
                 onImported={load}
                 onClose={() => setShowImport(false)}
             />
+
+            <Modal open={showExcelModal} onClose={() => setShowExcelModal(false)} title="Upload Excel Questions" size="md">
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-600">Please ensure your Excel (.xlsx) file follows exactly this column order. The first row (headers) will be skipped.</p>
+                    <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 overflow-x-auto">
+                        <table className="w-full text-left text-xs whitespace-nowrap">
+                            <thead>
+                                <tr className="text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                                    <th className="pb-2 pr-4 font-semibold">Column</th>
+                                    <th className="pb-2 font-semibold">Description</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-gray-700">
+                                <tr><td className="py-1.5 pr-4 font-medium">1. Question Text *</td><td>The question description</td></tr>
+                                <tr><td className="py-1.5 pr-4 font-medium">2. Type *</td><td><code className="bg-gray-200 px-1 rounded">MCQ</code> or <code className="bg-gray-200 px-1 rounded">SHORT_ANSWER</code></td></tr>
+                                <tr><td className="py-1.5 pr-4 font-medium">3. Marks *</td><td>Numeric value (e.g., 5)</td></tr>
+                                <tr><td className="py-1.5 pr-4 font-medium">4. Correct Answer *</td><td><code className="bg-gray-200 px-1 rounded">A</code>, <code className="bg-gray-200 px-1 rounded">B</code>, <code className="bg-gray-200 px-1 rounded">C</code>, <code className="bg-gray-200 px-1 rounded">D</code> or text</td></tr>
+                                <tr><td className="py-1.5 pr-4 font-medium">5. Option A</td><td>Text for Option A (Required for MCQ)</td></tr>
+                                <tr><td className="py-1.5 pr-4 font-medium">6. Option B</td><td>Text for Option B (Required for MCQ)</td></tr>
+                                <tr><td className="py-1.5 pr-4 font-medium">7. Option C</td><td>Text for Option C (Required for MCQ)</td></tr>
+                                <tr><td className="py-1.5 pr-4 font-medium">8. Option D</td><td>Text for Option D (Required for MCQ)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button variant="secondary" onClick={() => setShowExcelModal(false)}>Cancel</Button>
+                        <Button loading={uploadingExcel} onClick={() => fileInputRef.current?.click()}>Select File & Upload</Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     )
 }

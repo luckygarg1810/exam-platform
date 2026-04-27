@@ -18,3 +18,11 @@ export const deleteQuestion = (examId: string, questionId: string) =>
 
 export const importQuestions = (targetExamId: string, sourceExamId: string, questionIds: string[]) =>
     api.post<Question[]>(`/exams/${targetExamId}/questions/import`, { sourceExamId, questionIds }).then((r) => r.data)
+
+export const importQuestionsFromExcel = (examId: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post<Question[]>(`/exams/${examId}/questions/import/excel`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }).then((r) => r.data)
+}
