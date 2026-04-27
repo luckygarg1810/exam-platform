@@ -12,7 +12,6 @@ import { QuestionManager } from './QuestionManager'
 import { ManageEnrollments } from './ManageEnrollments'
 import { ManageProctors } from './ManageProctors'
 import { ExamResults } from './ExamResults'
-import { CreateExamForm } from './AdminDashboard'
 import toast from 'react-hot-toast'
 
 type Tab = 'questions' | 'enrollments' | 'proctors' | 'results'
@@ -131,17 +130,9 @@ export const ExamManage: React.FC = () => {
             </div>
 
             <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Edit Exam" size="lg">
-                <CreateExamForm
-                    initial={exam as any}
-                    onSubmit={async req => {
-                        const { updateExam } = await import('../../api/exams')
-                        await updateExam(eid, req)
-                        toast.success('Exam updated!')
-                        setShowEdit(false)
-                        load()
-                    }}
-                    onCancel={() => setShowEdit(false)}
-                />
+                <div className="text-center py-8 text-gray-500">
+                    Edit functionality is not available for admin users. Teachers manage their own exams.
+                </div>
             </Modal>
 
             <ConfirmDialog

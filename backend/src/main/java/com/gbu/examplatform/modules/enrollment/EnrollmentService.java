@@ -42,7 +42,7 @@ public class EnrollmentService {
     @Transactional
     public EnrollmentDto adminEnroll(UUID examId, String universityRoll) {
         Exam exam = findPublishableExam(examId);
-        examService.requireAdminOwnership(exam);
+        examService.requireOwnershipOrAdmin(exam);
         User user = userRepository.findByUniversityRoll(universityRoll)
                 .filter(u -> u.getRole() == User.Role.STUDENT)
                 .orElseThrow(() -> new ResourceNotFoundException("Student", universityRoll));
@@ -72,7 +72,7 @@ public class EnrollmentService {
     @Transactional
     public BulkEnrollResult adminBulkEnroll(UUID examId, List<String> rolls) {
         Exam exam = findPublishableExam(examId);
-        examService.requireAdminOwnership(exam);
+        examService.requireOwnershipOrAdmin(exam);
 
         List<String> errors = new ArrayList<>();
         int successCount = 0;
@@ -116,7 +116,7 @@ public class EnrollmentService {
 
     @Transactional
     public void adminUnenroll(UUID examId, UUID userId) {
-        examService.requireAdminOwnership(examId);
+        examService.requireOwnershipOrAdmin(examId);
         ExamEnrollment enrollment = enrollmentRepository.findByExamIdAndUserId(examId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enrollment",
                         "examId=" + examId + ", userId=" + userId));
@@ -165,7 +165,7 @@ public class EnrollmentService {
 
     @Transactional(readOnly = true)
     public Page<EnrollmentDto> getEnrollments(UUID examId, Pageable pageable) {
-        examService.requireAdminOwnership(examId); // admins can only view their own exam's enrollments
+        examService.requireOwnershipOrAdmin(examId); // admins can only view their own exam's enrollments
         return enrollmentRepository.findEnrollmentsByExam(examId, pageable)
                 .map(this::toDto);
     }

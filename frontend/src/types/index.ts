@@ -17,7 +17,7 @@ export interface RegisterRequest {
 }
 export interface LoginRequest { email: string; password: string }
 // ─── User ─────────────────────────────────────────────────────────────────────
-export type UserRole = 'STUDENT' | 'PROCTOR' | 'ADMIN'
+export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN'
 export interface UserProfile {
   id: string; name: string; email: string; role: UserRole
   universityRoll?: string; department?: string
@@ -121,10 +121,12 @@ export interface FullSessionReport {
   session?: SessionResultDto; answers?: AnswerSummaryDto[]
   events?: ProctoringEventDto[]; violationSummary?: ViolationSummaryDto
 }
-// ─── Proctor Assignment ───────────────────────────────────────────────────────
+// ─── Invigilator Assignment ───────────────────────────────────────────────────────
 export interface ExamProctorAssignment {
   examId?: string; examTitle?: string; examStartTime?: string; examEndTime?: string
-  proctorId: string; proctorName?: string; proctorEmail?: string; assignedAt?: string
+  teacherId: string; teacherName?: string; teacherEmail?: string; assignedAt?: string
+  // Legacy: proctorId/proctorEmail still supported for backwards compatibility
+  proctorId?: string; proctorEmail?: string
 }
 // ─── Pagination ───────────────────────────────────────────────────────────────
 export interface Page<T> {

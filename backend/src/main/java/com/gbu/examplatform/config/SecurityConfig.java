@@ -50,18 +50,28 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health").permitAll()
                         // WebSocket handshake
                         .requestMatchers("/ws/**").permitAll()
-                        // Admin-only
+                        // Admin-only (user management)
                         .requestMatchers("/api/users").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/users/*/role").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/exams").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/exams/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/exams/**").hasRole("ADMIN")
-                        // Students can GET their own exam history; admins & proctors can access any
+                        .requestMatchers(HttpMethod.POST, "/api/users/teachers").hasRole("ADMIN")
+                        // Teacher & Admin (exam management)
+                        .requestMatchers(HttpMethod.POST, "/api/exams").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PUT, "/api/exams/**").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/exams/**").hasRole("TEACHER")
+                        // Questions, enrollments, sessions - TEACHER-managed
+                        .requestMatchers(HttpMethod.POST, "/api/exams/*/questions").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PUT, "/api/exams/*/questions/**").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/exams/*/questions/**").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/exams/*/enrollments").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/sessions/active").hasRole("TEACHER")
+                        // Invigilator assignment - TEACHER-managed
+                        .requestMatchers("/api/exams/*/invigilators").hasRole("TEACHER")
+                        // Students can GET their own exam history; teachers & admins can access any
                         .requestMatchers(HttpMethod.GET, "/api/reports/students/*/history").authenticated()
-                        .requestMatchers("/api/reports/**").hasAnyRole("ADMIN", "PROCTOR")
-                        // Proctor-only
-                        .requestMatchers("/api/proctoring/**").hasAnyRole("PROCTOR", "ADMIN")
+                        .requestMatchers("/api/reports/**").hasAnyRole("ADMIN", "TEACHER")
+                        // Proctoring/monitoring - TEACHER & ADMIN only
+                        .requestMatchers("/api/proctoring/**").hasAnyRole("TEACHER", "ADMIN")
                         // All other requests require authentication
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

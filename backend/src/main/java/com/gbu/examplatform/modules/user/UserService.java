@@ -4,11 +4,13 @@ import com.gbu.examplatform.exception.ResourceNotFoundException;
 import com.gbu.examplatform.exception.UnauthorizedAccessException;
 import com.gbu.examplatform.modules.storage.StorageService;
 import com.gbu.examplatform.modules.user.dto.*;
+import com.gbu.examplatform.modules.notification.EmailService;
 import com.gbu.examplatform.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,9 +25,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final SecurityUtils securityUtils;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     @Value("${minio.buckets.profile-photos}")
     private String profilePhotosBucket;
+
+    @Value("${app.base-url:http://localhost:3000}")
+    private String appBaseUrl;
 
     @Transactional(readOnly = true)
     public UserProfileDto getMyProfile() {
@@ -143,6 +150,43 @@ public class UserService {
 
         user.setIsActive(false);
         userRepository.save(user);
+    }
+
+    @Transactional
+    public UserProfileDto createUser(CreateUserRequest request) {
+        // Check if email already exists
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email already registered");
+        }
+
+        User.Role role = User.Role.valueOf(request.getRole().toUpperCase());
+
+        String rawPassword = request.getPassword();
+        boolean generatedPassword = false;
+        if (rawPassword == null || rawPassword.isBlank()) {
+            // Auto-generate an 8-character password like TCHR-a3f29b
+            rawPassword = (role == User.Role.TEACHER ? "TCHR-" : "USER-") + UUID.randomUUID().toString().substring(0, 6);
+            generatedPassword = true;
+        }
+
+        User newUser = User.builder()
+                .name(request.getName())
+                .email(request.getEmail())
+                .passwordHash(passwordEncoder.encode(rawPassword))
+                .role(role)
+                .department(request.getDepartment())
+                .mobileNumber(request.getMobileNumber())
+                .isActive(true)
+                .build();
+
+        User savedUser = userRepository.save(newUser);
+
+        if (generatedPassword && role == User.Role.TEACHER) {
+            String loginUrl = appBaseUrl + "/login";
+            emailService.sendTeacherWelcomeEmail(savedUser.getEmail(), savedUser.getName(), rawPassword, loginUrl);
+        }
+
+        return toDto(savedUser);
     }
 
     private UserProfileDto toDto(User user) {

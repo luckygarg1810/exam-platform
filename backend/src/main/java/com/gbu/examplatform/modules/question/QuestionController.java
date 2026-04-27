@@ -24,8 +24,8 @@ public class QuestionController {
     private final QuestionService questionService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Add question to exam (Admin)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Add question to exam (Teacher)")
     public ResponseEntity<QuestionDto> createQuestion(
             @PathVariable UUID examId,
             @Valid @RequestBody CreateQuestionRequest request) {
@@ -51,8 +51,8 @@ public class QuestionController {
     }
 
     @PutMapping("/{questionId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update question (Admin)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Update question (Teacher)")
     public ResponseEntity<QuestionDto> updateQuestion(
             @PathVariable UUID examId,
             @PathVariable UUID questionId,
@@ -61,8 +61,8 @@ public class QuestionController {
     }
 
     @DeleteMapping("/{questionId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Delete question (Admin)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Delete question (Teacher)")
     public ResponseEntity<Map<String, String>> deleteQuestion(
             @PathVariable UUID examId,
             @PathVariable UUID questionId) {
@@ -71,8 +71,8 @@ public class QuestionController {
     }
 
     @PostMapping("/import")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Import questions from another exam (Admin)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Import questions from another exam (Teacher)")
     public ResponseEntity<List<QuestionDto>> importQuestions(
             @PathVariable UUID examId,
             @RequestBody ImportQuestionsRequest request) {

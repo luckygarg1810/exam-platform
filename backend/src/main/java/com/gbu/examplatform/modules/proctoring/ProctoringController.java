@@ -41,7 +41,7 @@ public class ProctoringController {
     // ── endpoints ────────────────────────────────────────────────────────────────
 
     @GetMapping("/sessions/{sessionId}/events")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     @Operation(summary = "Get proctoring events for a session (paginated)")
     public ResponseEntity<Page<ProctoringEvent>> getEvents(
             @PathVariable UUID sessionId,
@@ -53,7 +53,7 @@ public class ProctoringController {
     }
 
     @GetMapping("/sessions/{sessionId}/summary")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     @Operation(summary = "Get violation summary for a session")
     public ResponseEntity<ViolationSummary> getSummary(@PathVariable UUID sessionId) {
         requireScope(sessionId);
@@ -61,7 +61,7 @@ public class ProctoringController {
     }
 
     @PostMapping("/sessions/{sessionId}/flag")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     @Operation(summary = "Manually flag a proctoring violation")
     public ResponseEntity<ProctoringEvent> addFlag(
             @PathVariable UUID sessionId,
@@ -72,7 +72,7 @@ public class ProctoringController {
     }
 
     @PostMapping("/sessions/{sessionId}/clear")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     @Operation(summary = "Clear proctor flag (false positive)")
     public ResponseEntity<Map<String, String>> clearFlag(@PathVariable UUID sessionId) {
         requireScope(sessionId);
@@ -81,7 +81,7 @@ public class ProctoringController {
     }
 
     @PostMapping("/sessions/{sessionId}/notes")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     @Operation(summary = "Add proctor notes to session")
     public ResponseEntity<Map<String, String>> addNote(
             @PathVariable UUID sessionId,
@@ -92,7 +92,7 @@ public class ProctoringController {
     }
 
     @PostMapping("/sessions/{sessionId}/suspend")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     @Operation(summary = "Manually suspend an exam session")
     public ResponseEntity<ExamSessionService.SessionDto> suspend(
             @PathVariable UUID sessionId,
@@ -104,7 +104,7 @@ public class ProctoringController {
     }
 
     @GetMapping("/sessions/{sessionId}/behavior-events")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     @Operation(summary = "Paginated browser-behavior event feed for a session")
     public ResponseEntity<Page<BehaviorEvent>> getBehaviorEvents(
             @PathVariable UUID sessionId,

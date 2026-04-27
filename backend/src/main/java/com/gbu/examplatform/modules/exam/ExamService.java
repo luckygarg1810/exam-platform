@@ -66,15 +66,14 @@ public class ExamService {
 
         Page<Exam> page;
         if ("ADMIN".equals(role)) {
-            // Admin sees only their own non-deleted exams
-            UUID adminId = securityUtils.getCurrentUserId();
-            page = examRepository.findByCreatedBy_IdAndIsDeletedFalse(adminId, pageable);
-        } else if ("PROCTOR".equals(role)) {
-            // Proctor sees only exams they have been assigned to
-            UUID proctorId = securityUtils.getCurrentUserId();
-            page = examRepository.findByAssignedProctor(proctorId, pageable);
+            // Admin sees all exams (all roles)
+            page = examRepository.findByIsDeletedFalse(pageable);
+        } else if ("TEACHER".equals(role)) {
+            // Teacher sees exams they created (their own exams)
+            UUID teacherId = securityUtils.getCurrentUserId();
+            page = examRepository.findByCreatedBy_IdAndIsDeletedFalse(teacherId, pageable);
         } else {
-            // Student sees only exams they are enrolled in (admin-assigned)
+            // Student sees only exams they are enrolled in (published/ongoing/completed)
             List<Exam.ExamStatus> studentStatuses = List.of(
                     Exam.ExamStatus.PUBLISHED, Exam.ExamStatus.ONGOING, Exam.ExamStatus.COMPLETED);
             UUID userId = securityUtils.getCurrentUserId();
@@ -102,7 +101,7 @@ public class ExamService {
     @Transactional
     public ExamDto updateExam(UUID examId, CreateExamRequest request) {
         Exam exam = findExamById(examId);
-        requireAdminOwnership(exam);
+        requireOwnershipOrAdmin(exam);
 
         if (exam.getStatus() != Exam.ExamStatus.DRAFT) {
             throw new BusinessException("Can only edit exams in DRAFT status");
@@ -145,7 +144,7 @@ public class ExamService {
     @Transactional
     public void deleteExam(UUID examId) {
         Exam exam = findExamById(examId);
-        requireAdminOwnership(exam);
+        requireOwnershipOrAdmin(exam);
         if (exam.getStatus() == Exam.ExamStatus.ONGOING) {
             throw new BusinessException("Cannot delete an ongoing exam");
         }
@@ -159,7 +158,7 @@ public class ExamService {
     @Transactional
     public ExamDto publishExam(UUID examId) {
         Exam exam = findExamById(examId);
-        requireAdminOwnership(exam);
+        requireOwnershipOrAdmin(exam);
 
         if (exam.getStatus() != Exam.ExamStatus.DRAFT) {
             throw new BusinessException("Only DRAFT exams can be published");
@@ -196,30 +195,42 @@ public class ExamService {
     }
 
     /**
-     * Throws UnauthorizedAccessException if the current ADMIN user is not the
-     * creator of the given exam. No-op for non-admin roles.
+     * Throws UnauthorizedAccessException if the current user is not authorized to
+     * modify this exam.
+     * Authorized users: ADMIN (any exam), TEACHER (if they created it)
      * Pass an already-loaded Exam to avoid an extra DB round-trip.
      */
-    public void requireAdminOwnership(Exam exam) {
-        if (!securityUtils.isAdmin())
+    public void requireOwnershipOrAdmin(Exam exam) {
+        UUID currentUserId = securityUtils.getCurrentUserId();
+        String role = securityUtils.getCurrentUserRole();
+
+        // ADMIN can modify any exam
+        if ("ADMIN".equals(role)) {
             return;
-        UUID currentAdminId = securityUtils.getCurrentUserId();
-        if (exam.getCreatedBy() == null || !currentAdminId.equals(exam.getCreatedBy().getId())) {
+        }
+
+        // TEACHER can modify only exams they created
+        if ("TEACHER".equals(role)) {
+            if (exam.getCreatedBy() != null && currentUserId.equals(exam.getCreatedBy().getId())) {
+                return; // Creator has permission
+            }
             throw new UnauthorizedAccessException(
                     "You are not the creator of this exam");
         }
+
+        // Other roles (STUDENT) cannot modify exams
+        throw new UnauthorizedAccessException(
+                "You do not have permission to modify this exam");
     }
 
     /**
      * Convenience overload — loads the exam then delegates.
      * Use when calling from external services that only hold the examId.
      */
-    public void requireAdminOwnership(UUID examId) {
-        if (!securityUtils.isAdmin())
-            return;
+    public void requireOwnershipOrAdmin(UUID examId) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
-        requireAdminOwnership(exam);
+        requireOwnershipOrAdmin(exam);
     }
 
     // -------------------------------------------------------------------------

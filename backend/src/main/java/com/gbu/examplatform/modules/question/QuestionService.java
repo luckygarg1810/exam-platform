@@ -32,7 +32,7 @@ public class QuestionService {
     @Transactional
     public QuestionDto createQuestion(UUID examId, CreateQuestionRequest request) {
         Exam exam = findExam(examId);
-        examService.requireAdminOwnership(exam);
+        examService.requireOwnershipOrAdmin(exam);
 
         // Reject mutations to live or finished exams
         if (exam.getStatus() == Exam.ExamStatus.PUBLISHED
@@ -117,7 +117,7 @@ public class QuestionService {
     @Transactional
     public QuestionDto updateQuestion(UUID examId, UUID questionId, CreateQuestionRequest request) {
         Exam exam = findExam(examId);
-        examService.requireAdminOwnership(exam);
+        examService.requireOwnershipOrAdmin(exam);
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", questionId.toString()));
 
@@ -150,7 +150,7 @@ public class QuestionService {
     @Transactional
     public void deleteQuestion(UUID examId, UUID questionId) {
         Exam exam = findExam(examId);
-        examService.requireAdminOwnership(exam);
+        examService.requireOwnershipOrAdmin(exam);
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", questionId.toString()));
 
@@ -188,7 +188,7 @@ public class QuestionService {
         }
 
         Exam target = findExam(targetExamId);
-        examService.requireAdminOwnership(target);
+        examService.requireOwnershipOrAdmin(target);
 
         if (target.getStatus() != Exam.ExamStatus.DRAFT) {
             throw new BusinessException("Questions can only be imported into a DRAFT exam");
@@ -199,7 +199,7 @@ public class QuestionService {
         }
 
         Exam source = findExam(sourceExamId);
-        examService.requireAdminOwnership(source);
+        examService.requireOwnershipOrAdmin(source);
 
         // Deduplicate requested IDs
         List<UUID> distinctIds = questionIds.stream().distinct().collect(Collectors.toList());

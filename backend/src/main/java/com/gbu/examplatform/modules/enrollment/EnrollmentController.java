@@ -28,8 +28,8 @@ public class EnrollmentController {
      * Body: { "userId": "uuid" }
      */
     @PostMapping("/{examId}/enrollments")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Enroll a student in an exam by university roll number (Admin only)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Enroll a student in an exam by university roll number (Teacher only)")
     public ResponseEntity<EnrollmentService.EnrollmentDto> enrollStudent(
             @PathVariable UUID examId,
             @RequestBody EnrollStudentRequest body) {
@@ -42,8 +42,8 @@ public class EnrollmentController {
      * Body: { "userIds": ["uuid1", "uuid2", ...] }
      */
     @PostMapping("/{examId}/enrollments/bulk")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Bulk-enroll students by university roll numbers (Admin only)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Bulk-enroll students by university roll numbers (Teacher only)")
     public ResponseEntity<EnrollmentService.BulkEnrollResult> bulkEnrollStudents(
             @PathVariable UUID examId,
             @RequestBody EnrollmentService.BulkEnrollRequest body) {
@@ -56,8 +56,8 @@ public class EnrollmentController {
      * and before a session was started).
      */
     @DeleteMapping("/{examId}/enrollments/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Unenroll a student from an exam (Admin only)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Unenroll a student from an exam (Teacher only)")
     public ResponseEntity<Void> unenrollStudent(
             @PathVariable UUID examId,
             @PathVariable UUID userId) {
@@ -67,8 +67,8 @@ public class EnrollmentController {
 
     /** List all enrollments for an exam (paginated). */
     @GetMapping("/{examId}/enrollments")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
-    @Operation(summary = "List enrolled students for an exam (Admin/Proctor)")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    @Operation(summary = "List enrolled students for an exam (Admin/Teacher)")
     public ResponseEntity<Page<EnrollmentService.EnrollmentDto>> getEnrollments(
             @PathVariable UUID examId,
             @RequestParam(defaultValue = "0") int page,

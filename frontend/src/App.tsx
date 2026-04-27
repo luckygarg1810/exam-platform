@@ -23,10 +23,11 @@ import { ExamManage } from './pages/admin/ExamManage'
 import { LiveMonitor } from './pages/admin/LiveMonitor'
 import { SessionMonitor } from './pages/admin/SessionMonitor'
 
-// Proctor pages
-import { ProctorDashboard } from './pages/proctor/ProctorDashboard'
-import { InvigilateExam } from './pages/proctor/InvigilateExam'
-import { SessionDetail } from './pages/proctor/SessionDetail'
+// Teacher pages
+import { TeacherDashboard } from './pages/teacher/TeacherDashboard'
+import { TeacherExamManage } from './pages/teacher/TeacherExamManage'
+import { InvigilateExam } from './pages/teacher/InvigilateExam'
+import { SessionDetail } from './pages/teacher/SessionDetail'
 
 // ─── Guards ───────────────────────────────────────────────────────────────────
 interface ProtectedProps { role?: UserRole; children: React.ReactNode }
@@ -37,7 +38,7 @@ const ProtectedRoute: React.FC<ProtectedProps> = ({ role, children }) => {
 
     if (!accessToken) return <Navigate to="/login" state={{ from: location }} replace />
     if (role && user?.role !== role) {
-        const to = user?.role === 'ADMIN' ? '/admin' : user?.role === 'PROCTOR' ? '/proctor' : '/student'
+        const to = user?.role === 'ADMIN' ? '/admin' : user?.role === 'TEACHER' ? '/teacher' : '/student'
         return <Navigate to={to} replace />
     }
     return <>{children}</>
@@ -46,7 +47,7 @@ const ProtectedRoute: React.FC<ProtectedProps> = ({ role, children }) => {
 const GuestRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { accessToken, user } = useAuthStore()
     if (accessToken && user) {
-        const to = user.role === 'ADMIN' ? '/admin' : user.role === 'PROCTOR' ? '/proctor' : '/student'
+        const to = user.role === 'ADMIN' ? '/admin' : user.role === 'TEACHER' ? '/teacher' : '/student'
         return <Navigate to={to} replace />
     }
     return <>{children}</>
@@ -84,7 +85,7 @@ const AppInner: React.FC = () => {
             {/* Root redirect */}
             <Route path="/" element={
                 user
-                    ? <Navigate to={user.role === 'ADMIN' ? '/admin' : user.role === 'PROCTOR' ? '/proctor' : '/student'} replace />
+                    ? <Navigate to={user.role === 'ADMIN' ? '/admin' : user.role === 'TEACHER' ? '/teacher' : '/student'} replace />
                     : <Navigate to="/login" replace />
             } />
 
@@ -101,16 +102,16 @@ const AppInner: React.FC = () => {
             {/* Shared profile route (any authenticated user) */}
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
-            {/* Admin routes */}
+            {/* Admin routes - User management only */}
             <Route path="/admin" element={<ProtectedRoute role="ADMIN"><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin/exams/:examId" element={<ProtectedRoute role="ADMIN"><ExamManage /></ProtectedRoute>} />
             <Route path="/admin/monitor" element={<ProtectedRoute role="ADMIN"><LiveMonitor /></ProtectedRoute>} />
             <Route path="/admin/sessions/:sessionId" element={<ProtectedRoute role="ADMIN"><SessionMonitor /></ProtectedRoute>} />
 
-            {/* Proctor routes */}
-            <Route path="/proctor" element={<ProtectedRoute role="PROCTOR"><ProctorDashboard /></ProtectedRoute>} />
-            <Route path="/proctor/exams/:examId/invigulate" element={<ProtectedRoute role="PROCTOR"><InvigilateExam /></ProtectedRoute>} />
-            <Route path="/proctor/sessions/:sessionId" element={<ProtectedRoute role="PROCTOR"><SessionDetail /></ProtectedRoute>} />
+            {/* Teacher routes - Exam management and proctoring */}
+            <Route path="/teacher" element={<ProtectedRoute role="TEACHER"><TeacherDashboard /></ProtectedRoute>} />
+            <Route path="/teacher/exams/:examId" element={<ProtectedRoute role="TEACHER"><TeacherExamManage /></ProtectedRoute>} />
+            <Route path="/teacher/exams/:examId/invigulate" element={<ProtectedRoute role="TEACHER"><InvigilateExam /></ProtectedRoute>} />
+            <Route path="/teacher/sessions/:sessionId" element={<ProtectedRoute role="TEACHER"><SessionDetail /></ProtectedRoute>} />
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />

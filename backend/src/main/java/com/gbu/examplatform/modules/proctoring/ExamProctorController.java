@@ -38,8 +38,8 @@ public class ExamProctorController {
 
     /** Assign a proctor to an exam by their email address. */
     @PostMapping("/api/exams/{examId}/proctors")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Assign a proctor to an exam by email (Admin only)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Assign an invigilator to an exam by email (Teacher only)")
     public ResponseEntity<ExamProctorService.ExamProctorDto> assignProctor(
             @PathVariable UUID examId,
             @RequestBody Map<String, String> body) {
@@ -49,8 +49,8 @@ public class ExamProctorController {
 
     /** Unassign a proctor from an exam. */
     @DeleteMapping("/api/exams/{examId}/proctors/{proctorId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Unassign a proctor from an exam (Admin only)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Unassign an invigilator from an exam (Teacher only)")
     public ResponseEntity<Void> unassignProctor(
             @PathVariable UUID examId,
             @PathVariable UUID proctorId) {
@@ -60,7 +60,7 @@ public class ExamProctorController {
 
     /** List all proctors assigned to an exam. */
     @GetMapping("/api/exams/{examId}/proctors")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     @Operation(summary = "List proctors assigned to an exam")
     public ResponseEntity<List<ExamProctorService.ExamProctorDto>> getProctorsForExam(
             @PathVariable UUID examId) {
@@ -70,8 +70,8 @@ public class ExamProctorController {
 
     /** List all exams assigned to a specific proctor (Admin view). */
     @GetMapping("/api/users/{proctorId}/assigned-exams")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "List exams assigned to a proctor (Admin only)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "List exams assigned to an invigilator (Teacher only)")
     public ResponseEntity<List<ExamProctorService.ExamProctorDto>> getExamsForProctor(
             @PathVariable UUID proctorId) {
         return ResponseEntity.ok(examProctorService.getExamsForProctor(proctorId));
@@ -79,8 +79,8 @@ public class ExamProctorController {
 
     /** Proctor sees their own assigned exams (returns full ExamDto). */
     @GetMapping("/api/exams/my-assigned")
-    @PreAuthorize("hasRole('PROCTOR')")
-    @Operation(summary = "Get exams assigned to the current proctor")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Get exams assigned to the current invigilator")
     public ResponseEntity<List<ExamDto>> getMyAssignedExams() {
         UUID proctorId = securityUtils.getCurrentUserId();
         return ResponseEntity.ok(examProctorService.getMyAssignedExamDtos(proctorId));

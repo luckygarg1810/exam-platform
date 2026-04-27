@@ -23,8 +23,8 @@ public class ExamController {
     private final ExamService examService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Create a new exam (Admin)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Create a new exam (Teacher)")
     public ResponseEntity<ExamDto> createExam(@Valid @RequestBody CreateExamRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(examService.createExam(request));
     }
@@ -56,24 +56,24 @@ public class ExamController {
     }
 
     @PutMapping("/{examId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update exam (Admin, only DRAFT)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Update exam (Teacher, only DRAFT)")
     public ResponseEntity<ExamDto> updateExam(@PathVariable UUID examId,
             @Valid @RequestBody CreateExamRequest request) {
         return ResponseEntity.ok(examService.updateExam(examId, request));
     }
 
     @DeleteMapping("/{examId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Soft-delete exam (Admin)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Soft-delete exam (Teacher)")
     public ResponseEntity<Map<String, String>> deleteExam(@PathVariable UUID examId) {
         examService.deleteExam(examId);
         return ResponseEntity.ok(Map.of("message", "Exam deleted successfully"));
     }
 
     @PostMapping("/{examId}/publish")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Publish exam (Admin, requires questions)")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Publish exam (Teacher, requires questions)")
     public ResponseEntity<ExamDto> publishExam(@PathVariable UUID examId) {
         return ResponseEntity.ok(examService.publishExam(examId));
     }

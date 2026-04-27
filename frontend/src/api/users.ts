@@ -26,3 +26,12 @@ export const uploadProfilePhoto = (file: File) => {
         headers: { 'Content-Type': 'multipart/form-data' },
     }).then((r) => r.data)
 }
+
+export const createUser = (data: {
+    name: string
+    email: string
+    password?: string
+    role: string
+    department?: string
+    mobileNumber?: string
+}) => api.post<UserProfile>('/users', data).then((r) => r.data)

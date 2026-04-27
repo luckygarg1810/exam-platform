@@ -54,8 +54,8 @@ public class ExamSessionController {
     }
 
     @GetMapping("/active")
-    @PreAuthorize("hasAnyRole('PROCTOR','ADMIN')")
-    @Operation(summary = "Get all active sessions (Proctor/Admin)")
+    @PreAuthorize("hasAnyRole('TEACHER','ADMIN')")
+    @Operation(summary = "Get all active sessions (Teacher/Admin)")
     public ResponseEntity<Page<ExamSessionService.SessionDto>> getActiveSessions(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
@@ -73,8 +73,8 @@ public class ExamSessionController {
     }
 
     @PostMapping("/{sessionId}/reinstate")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
-    @Operation(summary = "Reinstate a suspended session (Admin/Proctor only)")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    @Operation(summary = "Reinstate a suspended session (Admin/Teacher only)")
     public ResponseEntity<ExamSessionService.SessionDto> reinstateSession(
             @PathVariable UUID sessionId,
             @RequestBody(required = false) ReinstateRequest body) {

@@ -53,7 +53,7 @@ public class ReportService {
         examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
         examProctorService.requireProctorScopeForExam(examId);
-        examService.requireAdminOwnership(examId);
+        examService.requireOwnershipOrAdmin(examId);
         Page<ExamSession> page = sessionRepository.findByExamId(examId, pageable);
         // Bulk-fetch summaries for the whole page in a single query (Issue 19)
         Map<UUID, ViolationSummary> vsMap = buildVsMap(page.getContent());
@@ -65,7 +65,7 @@ public class ReportService {
     public String exportExamResultsCsv(UUID examId) {
         examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
-        examService.requireAdminOwnership(examId);
+        examService.requireOwnershipOrAdmin(examId);
 
         List<ExamSession> sessions = sessionRepository.findAllByExamId(examId);
         // Bulk-fetch summaries to avoid N+1 (Issue 19)
@@ -111,7 +111,7 @@ public class ReportService {
                 .orElseThrow(() -> new ResourceNotFoundException("Session", sessionId.toString()));
         UUID examId = session.getEnrollment().getExam().getId();
         examProctorService.requireProctorScopeForExam(examId);
-        examService.requireAdminOwnership(examId);
+        examService.requireOwnershipOrAdmin(examId);
 
         List<Answer> answers = answerRepository.findBySessionId(sessionId);
         List<ProctoringEvent> events = proctoringEventRepository

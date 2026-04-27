@@ -83,4 +83,38 @@ public class EmailService {
             log.error("Failed to send reset email to {}: {}", to, e.getMessage());
         }
     }
+
+    @Async
+    public void sendTeacherWelcomeEmail(String to, String name, String rawPassword, String loginUrl) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject("Welcome to GBU Exam Platform");
+
+            String html = String.format("""
+                    <html><body>
+                    <h2>Welcome to GBU Exam Platform</h2>
+                    <p>Dear %s,</p>
+                    <p>An administrator has created a Teacher account for you.</p>
+                    <p>Your login credentials are:</p>
+                    <ul>
+                      <li><b>Email:</b> %s</li>
+                      <li><b>Temporary Password:</b> %s</li>
+                    </ul>
+                    <p>Please log in and change your password immediately.</p>
+                    <p><a href="%s">Log In Here</a></p>
+                    <p>— GBU Exam Platform</p>
+                    </body></html>
+                    """, name, to, rawPassword, loginUrl);
+
+            helper.setText(html, true);
+            mailSender.send(message);
+            log.info("Teacher welcome email sent to {}", to);
+        } catch (Exception e) {
+            log.error("Failed to send teacher welcome email to {}: {}", to, e.getMessage());
+        }
+    }
 }

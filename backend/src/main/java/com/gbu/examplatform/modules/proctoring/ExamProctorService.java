@@ -39,17 +39,26 @@ public class ExamProctorService {
     private final ExamService examService;
 
     /**
-     * Throws UnauthorizedAccessException if the current user is a PROCTOR who is
-     * NOT assigned to the given exam. ADMINs always pass.
+     * Throws UnauthorizedAccessException if the current user is a TEACHER who is
+     * NOT assigned to the given exam AND did NOT create it. ADMINs always pass.
      * Call this at the start of any proctor-facing controller action.
      */
     public void requireProctorScopeForExam(UUID examId) {
         if (securityUtils.isAdmin())
             return;
-        UUID proctorId = securityUtils.getCurrentUserId();
-        if (!examProctorRepository.isProctorForExam(examId, proctorId)) {
+
+        UUID currentUserId = securityUtils.getCurrentUserId();
+
+        // Check if the current user created the exam
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ResourceNotFoundException("Exam", examId.toString()));
+        if (exam.getCreatedBy() != null && currentUserId.equals(exam.getCreatedBy().getId())) {
+            return; // Creator has access
+        }
+
+        if (!examProctorRepository.isProctorForExam(examId, currentUserId)) {
             throw new UnauthorizedAccessException(
-                    "You are not assigned as a proctor for this exam");
+                    "You do not have access to this exam");
         }
     }
 
@@ -62,8 +71,8 @@ public class ExamProctorService {
         }
         User proctor = userRepository.findByEmail(email.strip())
                 .orElseThrow(() -> new ResourceNotFoundException("User", email));
-        if (proctor.getRole() != com.gbu.examplatform.modules.user.User.Role.PROCTOR) {
-            throw new BusinessException("User is not a proctor");
+        if (proctor.getRole() != com.gbu.examplatform.modules.user.User.Role.TEACHER) {
+            throw new BusinessException("User is not a teacher");
         }
         return assignProctor(examId, proctor.getId());
     }
@@ -71,7 +80,7 @@ public class ExamProctorService {
     @Transactional
     public ExamProctorDto assignProctor(UUID examId, UUID proctorId) {
         Exam exam = findExam(examId);
-        examService.requireAdminOwnership(exam);
+        examService.requireOwnershipOrAdmin(exam);
         User proctor = findProctor(proctorId);
 
         if (examProctorRepository.existsByExamIdAndProctorId(examId, proctorId)) {
@@ -103,7 +112,7 @@ public class ExamProctorService {
 
     @Transactional
     public void unassignProctor(UUID examId, UUID proctorId) {
-        examService.requireAdminOwnership(examId);
+        examService.requireOwnershipOrAdmin(examId);
         Exam exam = findExam(examId);
         if (exam.getStatus() == Exam.ExamStatus.COMPLETED) {
             throw new BusinessException("Cannot unassign proctors from a completed exam");
@@ -120,7 +129,7 @@ public class ExamProctorService {
     @Transactional(readOnly = true)
     public List<ExamProctorDto> getProctorsForExam(UUID examId) {
         findExam(examId); // validate exam exists
-        examService.requireAdminOwnership(examId); // admins only see their own exam's proctors
+        examService.requireOwnershipOrAdmin(examId); // admins only see their own exam's proctors
         return examProctorRepository.findByExamId(examId)
                 .stream().map(this::toDto).toList();
     }
@@ -175,8 +184,8 @@ public class ExamProctorService {
     private User findProctor(UUID proctorId) {
         User user = userRepository.findById(proctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", proctorId.toString()));
-        if (user.getRole() != com.gbu.examplatform.modules.user.User.Role.PROCTOR) {
-            throw new BusinessException("User is not a proctor");
+        if (user.getRole() != com.gbu.examplatform.modules.user.User.Role.TEACHER) {
+            throw new BusinessException("User is not a teacher");
         }
         return user;
     }

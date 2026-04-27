@@ -33,7 +33,7 @@ export const ManageProctors: React.FC<{ examId: string; isCompleted?: boolean }>
     const handleRemove = async () => {
         if (!removing) return
         try {
-            await unassignProctor(examId, removing.proctorId)
+            await unassignProctor(examId, removing.teacherId)
             toast.success('Proctor removed')
             setRemoving(null); load()
         } catch (err: any) { toast.error(err.response?.data?.message || 'Failed') }
@@ -85,9 +85,9 @@ export const ManageProctors: React.FC<{ examId: string; isCompleted?: boolean }>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {proctors.map(p => (
-                                <tr key={p.proctorId} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">{p.proctorName}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-500">{p.proctorEmail}</td>
+                                <tr key={p.teacherId} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">{p.teacherName}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-500">{p.teacherEmail}</td>
                                     <td className="px-4 py-3 text-xs text-gray-400">
                                         {p.assignedAt ? new Date(p.assignedAt).toLocaleDateString() : '—'}
                                     </td>
@@ -107,7 +107,7 @@ export const ManageProctors: React.FC<{ examId: string; isCompleted?: boolean }>
             <ConfirmDialog
                 open={!!removing}
                 title="Remove Proctor"
-                message={`Remove ${removing?.proctorName ?? 'this proctor'} from the exam?`}
+                message={`Remove ${removing?.teacherName ?? 'this proctor'} from the exam?`}
                 confirmLabel="Remove"
                 onConfirm={handleRemove}
                 onCancel={() => setRemoving(null)}

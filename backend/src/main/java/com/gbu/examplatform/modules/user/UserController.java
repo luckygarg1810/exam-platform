@@ -34,6 +34,14 @@ public class UserController {
         return ResponseEntity.ok(userService.updateMyProfile(request));
     }
 
+    @PostMapping("/me/photo")
+    @Operation(summary = "Upload profile photo")
+    public ResponseEntity<Map<String, String>> uploadProfilePhoto(
+            @RequestParam("file") MultipartFile file) {
+        String photoUrl = userService.uploadProfilePhoto(file, false);
+        return ResponseEntity.ok(Map.of("url", photoUrl));
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "List all users (Admin only)")
@@ -71,5 +79,12 @@ public class UserController {
     public ResponseEntity<Map<String, String>> deleteUser(@PathVariable UUID userId) {
         userService.deleteUser(userId);
         return ResponseEntity.ok(Map.of("message", "User deactivated successfully"));
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Create new user (Admin only)")
+    public ResponseEntity<UserProfileDto> createUser(@Valid @RequestBody CreateUserRequest request) {
+        return ResponseEntity.ok(userService.createUser(request));
     }
 }

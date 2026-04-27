@@ -23,7 +23,7 @@ export const Login: React.FC = () => {
             const user = await getMe()
             setAuth(user, res.accessToken, res.refreshToken)
             const from = (location.state as any)?.from?.pathname
-            const to = from || (user.role === 'ADMIN' ? '/admin' : user.role === 'PROCTOR' ? '/proctor' : '/student')
+            const to = from || (user.role === 'ADMIN' ? '/admin' : user.role === 'TEACHER' ? '/teacher' : '/student')
             navigate(to, { replace: true })
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Invalid credentials')

@@ -27,7 +27,7 @@ public class ReportController {
     private final SecurityUtils securityUtils;
 
     @GetMapping("/exams/{examId}/results")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     @Operation(summary = "Get all student results for an exam (paginated)")
     public ResponseEntity<Page<ReportService.SessionResultDto>> getExamResults(
             @PathVariable UUID examId,
@@ -38,7 +38,7 @@ public class ReportController {
     }
 
     @GetMapping("/exams/{examId}/export")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     @Operation(summary = "Download CSV of all exam results")
     public ResponseEntity<byte[]> exportExamResults(@PathVariable UUID examId) {
         String csv = reportService.exportExamResultsCsv(examId);
@@ -53,7 +53,7 @@ public class ReportController {
     }
 
     @GetMapping("/sessions/{sessionId}/full")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER','STUDENT')")
     @Operation(summary = "Full session report: score + answers + violation timeline")
     public ResponseEntity<ReportService.FullSessionReportDto> getFullReport(
             @PathVariable UUID sessionId) {
@@ -61,7 +61,7 @@ public class ReportController {
     }
 
     @GetMapping("/students/{userId}/history")
-    @PreAuthorize("hasAnyRole('ADMIN','PROCTOR','STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER','STUDENT')")
     @Operation(summary = "Exam history for a student. Students can only view their own history.")
     public ResponseEntity<Page<ReportService.SessionResultDto>> getStudentHistory(
             @PathVariable UUID userId,
