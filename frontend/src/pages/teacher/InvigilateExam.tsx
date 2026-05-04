@@ -91,7 +91,7 @@ export const InvigilateExam: React.FC = () => {
                     ) : (
                         <div className="space-y-2">
                             {sessions.map((s, i) => (
-                                <div key={s.id} onClick={() => navigate(`/proctor/sessions/${s.id}`)}
+                                <div key={s.id} onClick={() => navigate(`/teacher/sessions/${s.id}`)}
                                     className={`bg-white rounded-2xl border border-gray-100 shadow-card p-4 flex items-center gap-3 cursor-pointer hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 stagger-${Math.min(i + 1, 6)}`}>
                                     <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center text-violet-700 font-black text-sm flex-shrink-0">
                                         {s.userName?.charAt(0)?.toUpperCase()}
@@ -126,7 +126,7 @@ export const InvigilateExam: React.FC = () => {
                             <div className="divide-y divide-gray-100">
                                 {alerts.map((a, i) => (
                                     <div key={i} className="px-4 py-3 hover:bg-violet-50/40 cursor-pointer transition-colors"
-                                        onClick={() => a.sessionId && navigate(`/proctor/sessions/${a.sessionId}`)}
+                                        onClick={() => a.sessionId && navigate(`/teacher/sessions/${a.sessionId}`)}
                                     >
                                         <div className="flex items-center justify-between mb-0.5">
                                             <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-lg">{a.type}</span>

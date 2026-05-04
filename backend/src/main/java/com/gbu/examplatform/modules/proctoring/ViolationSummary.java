@@ -1,5 +1,7 @@
 package com.gbu.examplatform.modules.proctoring;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.gbu.examplatform.modules.session.ExamSession;
 import jakarta.persistence.*;
 import lombok.*;
@@ -19,12 +21,14 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ViolationSummary {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @JsonIgnore
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id", unique = true, nullable = false)
     private ExamSession session;

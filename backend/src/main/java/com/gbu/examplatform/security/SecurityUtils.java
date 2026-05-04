@@ -37,6 +37,10 @@ public class SecurityUtils {
         return hasRole("PROCTOR");
     }
 
+    public boolean isTeacher() {
+        return hasRole("TEACHER");
+    }
+
     public boolean isStudent() {
         return hasRole("STUDENT");
     }

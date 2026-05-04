@@ -29,7 +29,7 @@ const ICONS = {
 
 const roleMeta: Record<string, { label: string; color: string; bg: string; gradient: string }> = {
     STUDENT: { label: 'Student', color: 'text-violet-700', bg: 'bg-violet-100', gradient: 'from-violet-500 to-purple-600' },
-    PROCTOR: { label: 'Proctor', color: 'text-blue-700', bg: 'bg-blue-100', gradient: 'from-blue-500 to-indigo-600' },
+    TEACHER: { label: 'Teacher', color: 'text-blue-700', bg: 'bg-blue-100', gradient: 'from-blue-500 to-indigo-600' },
     ADMIN: { label: 'Admin', color: 'text-rose-700', bg: 'bg-rose-100', gradient: 'from-rose-500 to-pink-600' },
 }
 
@@ -115,14 +115,16 @@ export const Profile: React.FC = () => {
         { icon: ICONS.user, label: 'Full Name', value: form.name, fieldKey: 'name', editable: true },
         { icon: ICONS.mail, label: 'Email Address', value: user.email, fieldKey: 'email', editable: false },
         { icon: ICONS.phone, label: 'Mobile Number', value: form.mobileNumber, fieldKey: 'mobileNumber', type: 'tel', editable: true },
-        { icon: ICONS.user, label: "Father's Name", value: form.fathersName, fieldKey: 'fathersName', editable: true },
+        ...(user.role === 'STUDENT' ? [{ icon: ICONS.user, label: "Father's Name", value: form.fathersName, fieldKey: 'fathersName', editable: true }] : []),
     ]
 
     const academicFields: ProfileField[] = [
         { icon: ICONS.id, label: 'University Roll', value: form.universityRoll, fieldKey: 'universityRoll', editable: user.role === 'STUDENT' },
         { icon: ICONS.department, label: 'Department', value: form.department, fieldKey: 'department', editable: user.role === 'STUDENT' },
-        { icon: ICONS.book, label: 'Programme', value: form.programme, fieldKey: 'programme', editable: user.role === 'STUDENT' },
-        { icon: ICONS.calendar, label: 'Year of Admission', value: form.yearOfAdmission, fieldKey: 'yearOfAdmission', type: 'number', editable: user.role === 'STUDENT' },
+        ...(user.role === 'STUDENT' ? [
+            { icon: ICONS.book, label: 'Programme', value: form.programme, fieldKey: 'programme', editable: true },
+            { icon: ICONS.calendar, label: 'Year of Admission', value: form.yearOfAdmission, fieldKey: 'yearOfAdmission', type: 'number', editable: true }
+        ] : []),
     ]
 
     const inputCls = 'w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all'

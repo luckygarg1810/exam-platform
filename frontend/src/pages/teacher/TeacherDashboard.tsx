@@ -17,6 +17,7 @@ export const TeacherDashboard: React.FC = () => {
     const [createdExams, setCreatedExams] = useState<Exam[]>([])
     const [loading, setLoading] = useState(true)
     const [showCreateModal, setShowCreateModal] = useState(false)
+    const [duplicateExam, setDuplicateExam] = useState<Exam | null>(null)
 
     const load = () => {
         setLoading(true)
@@ -93,7 +94,8 @@ export const TeacherDashboard: React.FC = () => {
                                         exam={exam} 
                                         index={i} 
                                         actionLabel="Manage Exam"
-                                        onAction={() => navigate(`/teacher/exams/${exam.id}`)} 
+                                        onAction={() => navigate(`/teacher/exams/${exam.id}`)}
+                                        onDuplicate={() => setDuplicateExam(exam)}
                                     />
                                 ))}
                             </div>
@@ -127,15 +129,17 @@ export const TeacherDashboard: React.FC = () => {
             )}
 
             <CreateExamModal 
-                open={showCreateModal} 
-                onClose={() => setShowCreateModal(false)} 
-                onSuccess={load} 
+                open={showCreateModal || !!duplicateExam} 
+                initial={duplicateExam}
+                isDuplicate={!!duplicateExam}
+                onClose={() => { setShowCreateModal(false); setDuplicateExam(null) }} 
+                onSuccess={() => { load(); setDuplicateExam(null) }} 
             />
         </Layout>
     )
 }
 
-const ExamCard: React.FC<{ exam: Exam; index?: number; actionLabel?: string; onAction?: () => void }> = ({ exam, index = 0, actionLabel, onAction }) => {
+const ExamCard: React.FC<{ exam: Exam; index?: number; actionLabel?: string; onAction?: () => void; onDuplicate?: () => void }> = ({ exam, index = 0, actionLabel, onAction, onDuplicate }) => {
     const isActive = exam.status === 'ONGOING'
     return (
         <div className={`bg-white rounded-2xl border border-gray-100 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 overflow-hidden stagger-${Math.min(index + 1, 6)}`}>
@@ -154,9 +158,18 @@ const ExamCard: React.FC<{ exam: Exam; index?: number; actionLabel?: string; onA
                 {exam.startTime && <p className="text-xs text-violet-600 font-semibold mb-3">{new Date(exam.startTime).toLocaleString()}</p>}
                 
                 {onAction && actionLabel && (
-                    <Button size="sm" onClick={onAction} className="w-full justify-center mt-auto">
-                        {actionLabel}
-                    </Button>
+                    <div className="flex gap-2 w-full mt-auto">
+                        <Button size="sm" onClick={onAction} className="flex-1 justify-center">
+                            {actionLabel}
+                        </Button>
+                        {onDuplicate && (
+                            <Button size="sm" variant="secondary" onClick={onDuplicate} title="Create Similar Exam">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                                </svg>
+                            </Button>
+                        )}
+                    </div>
                 )}
             </div>
         </div>

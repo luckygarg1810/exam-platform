@@ -68,7 +68,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
                             options.onSuspend?.(data.reason || msg.body)
                         } catch { options.onSuspend?.(msg.body) }
                     })
-                    client.subscribe(`/topic/proctor/session/${options.sessionId}`, (msg) => {
+                    client.subscribe(`/queue/exam/${options.sessionId}/update`, (msg) => {
                         try { options.onSessionUpdate?.(JSON.parse(msg.body)) } catch { }
                     })
                 }

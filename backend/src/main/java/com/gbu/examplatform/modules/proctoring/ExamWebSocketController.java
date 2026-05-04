@@ -5,7 +5,7 @@ import com.gbu.examplatform.modules.notification.NotificationService;
 import com.gbu.examplatform.modules.session.ExamSession;
 import com.gbu.examplatform.modules.session.ExamSessionRepository;
 import com.gbu.examplatform.modules.session.ExamSessionService;
-import com.gbu.examplatform.security.SecurityUtils;
+import com.gbu.examplatform.security.AuthenticatedUser;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -13,9 +13,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.Principal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -31,9 +33,13 @@ import java.util.UUID;
  * Student sends to:
  * /app/exam/{sessionId}/frame → decode Base64, relay to RabbitMQ frame.analysis
  * /app/exam/{sessionId}/audio → decode Base64, relay to RabbitMQ audio.analysis
- * /app/exam/{sessionId}/event → save behavior event to DB, relay to RabbitMQ
- * behavior.events
+ * /app/exam/{sessionId}/event → save behavior event to DB, relay to RabbitMQ behavior.events
  * /app/exam/{sessionId}/heartbeat → update session heartbeat
+ *
+ * NOTE: @MessageMapping handlers run in the clientInboundChannel thread pool which
+ * does NOT inherit Spring Security's SecurityContextHolder. Authentication is read
+ * from the STOMP session Principal injected by Spring, which is set by
+ * WebSocketChannelInterceptor during the CONNECT frame.
  */
 @Controller
 @Slf4j
@@ -45,7 +51,6 @@ public class ExamWebSocketController {
     private final ExamSessionService sessionService;
     private final BehaviorEventRepository behaviorEventRepository;
     private final NotificationService notificationService;
-    private final SecurityUtils securityUtils;
     private final StringRedisTemplate stringRedisTemplate;
 
     // Tab-switch threshold for immediate warning
@@ -63,12 +68,13 @@ public class ExamWebSocketController {
      */
     @MessageMapping("/exam/{sessionId}/frame")
     public void handleFrame(@DestinationVariable UUID sessionId,
-            @Payload Map<String, Object> payload) {
+            @Payload Map<String, Object> payload,
+            Principal principal) {
         if (isRateLimited(sessionId, "frame", RATE_FRAME)) {
             log.debug("Rate limit exceeded for frame on session {}", sessionId);
             return;
         }
-        ExamSession session = validateSession(sessionId);
+        ExamSession session = validateSession(sessionId, principal);
         if (session == null)
             return;
 
@@ -90,12 +96,13 @@ public class ExamWebSocketController {
      */
     @MessageMapping("/exam/{sessionId}/audio")
     public void handleAudio(@DestinationVariable UUID sessionId,
-            @Payload Map<String, Object> payload) {
+            @Payload Map<String, Object> payload,
+            Principal principal) {
         if (isRateLimited(sessionId, "audio", RATE_AUDIO)) {
             log.debug("Rate limit exceeded for audio on session {}", sessionId);
             return;
         }
-        ExamSession session = validateSession(sessionId);
+        ExamSession session = validateSession(sessionId, principal);
         if (session == null)
             return;
 
@@ -112,19 +119,19 @@ public class ExamWebSocketController {
     }
 
     /**
-     * Receives a browser behavior event (tab switch, fullscreen exit, copy, paste,
-     * etc.).
+     * Receives a browser behavior event (tab switch, fullscreen exit, copy, paste, etc.).
      * Saves immediately to DB, applies quick rule-based checks, relays to RabbitMQ.
      */
     @MessageMapping("/exam/{sessionId}/event")
     @Transactional
     public void handleBehaviorEvent(@DestinationVariable UUID sessionId,
-            @Payload Map<String, Object> payload) {
+            @Payload Map<String, Object> payload,
+            Principal principal) {
         if (isRateLimited(sessionId, "event", RATE_EVENT)) {
             log.debug("Rate limit exceeded for event on session {}", sessionId);
             return;
         }
-        ExamSession session = validateSession(sessionId);
+        ExamSession session = validateSession(sessionId, principal);
         if (session == null)
             return;
 
@@ -171,21 +178,18 @@ public class ExamWebSocketController {
     }
 
     /**
-     * Session keep-alive: updates last_heartbeat_at in DB and refreshes Redis
-     * presence TTL.
+     * Session keep-alive: updates last_heartbeat_at in DB and refreshes Redis presence TTL.
      * Client should send every 30 seconds.
      */
     @MessageMapping("/exam/{sessionId}/heartbeat")
-    public void handleHeartbeat(@DestinationVariable UUID sessionId) {
+    public void handleHeartbeat(@DestinationVariable UUID sessionId, Principal principal) {
         if (isRateLimited(sessionId, "heartbeat", RATE_HEARTBEAT)) {
             log.debug("Rate limit exceeded for heartbeat on session {}", sessionId);
             return;
         }
-        // Delegate entirely to the service layer — avoids duplicating the DB +
-        // Redis logic that already lives in ExamSessionService.heartbeat() (Issue 15).
-        if (validateSession(sessionId) == null)
+        if (validateSession(sessionId, principal) == null)
             return;
-        sessionService.heartbeat(sessionId);
+        sessionService.heartbeatFromWs(sessionId);
         log.debug("Heartbeat received for session {}", sessionId);
     }
 
@@ -194,16 +198,29 @@ public class ExamWebSocketController {
     // -------------------------------------------------------------------------
 
     /**
-     * Validates that a session exists, is not submitted, and is not suspended.
-     * Returns null and logs a warning if any check fails (WebSocket handlers can't
-     * throw HTTP errors).
+     * Extracts the AuthenticatedUser from the STOMP session Principal.
+     * The Principal is a UsernamePasswordAuthenticationToken set by
+     * WebSocketChannelInterceptor during the CONNECT frame.
+     * Returns null if the principal is missing or malformed.
      */
+    private AuthenticatedUser extractUser(Principal principal) {
+        if (principal instanceof UsernamePasswordAuthenticationToken auth
+                && auth.getPrincipal() instanceof AuthenticatedUser user) {
+            return user;
+        }
+        log.warn("WebSocket handler: cannot extract AuthenticatedUser from principal {}", principal);
+        return null;
+    }
+
     /**
-     * Validates that a session exists, is open, and is owned by the current user.
-     * PROCTOR and ADMIN principals may interact with any session.
-     * Students are rejected if they do not own the session (Issue 16).
+     * Validates that a session exists, is not submitted, and is not suspended.
+     * Also enforces that students can only interact with their own session.
+     * TEACHER and ADMIN principals may interact with any session.
+     *
+     * Uses the STOMP session Principal directly — does NOT touch SecurityContextHolder,
+     * which is not populated in clientInboundChannel threads.
      */
-    private ExamSession validateSession(UUID sessionId) {
+    private ExamSession validateSession(UUID sessionId, Principal principal) {
         ExamSession session = sessionRepository.findById(sessionId)
                 .filter(s -> s.getSubmittedAt() == null && !Boolean.TRUE.equals(s.getIsSuspended()))
                 .orElseGet(() -> {
@@ -213,22 +230,32 @@ public class ExamWebSocketController {
         if (session == null)
             return null;
 
-        // Ownership check: only students need to own the session;
-        // proctors and admins may observe any session.
-        if (securityUtils.isStudent()) {
-            UUID currentUserId = securityUtils.getCurrentUserId();
-            if (sessionRepository.countByIdAndUserId(sessionId, currentUserId) == 0) {
-                log.warn("WebSocket message dropped: user {} does not own session {}", currentUserId, sessionId);
+        AuthenticatedUser user = extractUser(principal);
+        if (user == null) {
+            log.warn("WebSocket message dropped: unauthenticated principal for session {}", sessionId);
+            return null;
+        }
+
+        // Proctors / teachers / admins may observe any session
+        String role = user.getRole();
+        if ("ADMIN".equals(role) || "TEACHER".equals(role) || "PROCTOR".equals(role)) {
+            return session;
+        }
+
+        // Students must own the session
+        if ("STUDENT".equals(role)) {
+            UUID userId = UUID.fromString(user.getId());
+            if (sessionRepository.countByIdAndUserId(sessionId, userId) == 0) {
+                log.warn("WebSocket message dropped: user {} does not own session {}", userId, sessionId);
                 return null;
             }
+            return session;
         }
-        return session;
+
+        log.warn("WebSocket message dropped: unrecognised role {} for session {}", role, sessionId);
+        return null;
     }
 
-    /**
-     * Applies quick rule-based warnings without waiting for AI.
-     * Called synchronously so warnings are immediate.
-     */
     /**
      * Sliding-window rate limiter using Redis INCR + EXPIRE.
      * Returns true if the request should be dropped (limit exceeded).

@@ -48,4 +48,23 @@ public interface ExamProctorRepository extends JpaRepository<ExamProctor, ExamPr
     /** Check if a user is an assigned proctor for a specific exam. */
     @Query("SELECT COUNT(ep) > 0 FROM ExamProctor ep WHERE ep.exam.id = :examId AND ep.proctor.id = :proctorId")
     boolean isProctorForExam(@Param("examId") UUID examId, @Param("proctorId") UUID proctorId);
+
+    /**
+     * Returns true if the given user either CREATED the exam or is assigned as an invigilator.
+     * Used by the WebSocket interceptor to gate exam-alert topic subscriptions for TEACHER role.
+     */
+    @Query("""
+            SELECT COUNT(e) > 0
+            FROM Exam e
+            WHERE e.id = :examId
+              AND e.isDeleted = false
+              AND (
+                e.createdBy.id = :userId
+                OR EXISTS (
+                    SELECT ep FROM ExamProctor ep
+                    WHERE ep.exam.id = :examId AND ep.proctor.id = :userId
+                )
+              )
+            """)
+    boolean isOwnerOrAssignedProctor(@Param("examId") UUID examId, @Param("userId") UUID userId);
 }

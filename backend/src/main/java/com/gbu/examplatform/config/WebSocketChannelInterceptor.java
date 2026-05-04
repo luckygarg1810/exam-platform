@@ -149,22 +149,25 @@ public class WebSocketChannelInterceptor implements ChannelInterceptor {
             return;
         }
 
-        // /topic/proctor/exam/{examId}/** — assigned proctors and admins only
+        // /topic/proctor/exam/{examId}/** — assigned teachers and admins only
         Matcher examMatcher = EXAM_ALERT_DEST.matcher(destination);
         if (examMatcher.find()) {
             String role = principal.getRole();
-            if (!"PROCTOR".equals(role) && !"ADMIN".equals(role)) {
+            if (!"PROCTOR".equals(role) && !"TEACHER".equals(role) && !"ADMIN".equals(role)) {
                 log.warn("SUBSCRIBE rejected: role {} cannot subscribe to {}", role, destination);
-                throw new IllegalArgumentException("Only proctors and admins may subscribe to exam alert topics");
+                throw new IllegalArgumentException("Only teachers and admins may subscribe to exam alert topics");
             }
-            // Proctors must be assigned to the specific exam
-            if ("PROCTOR".equals(role)) {
+            // Teachers must own the exam OR be assigned as an invigilator
+            if ("TEACHER".equals(role) || "PROCTOR".equals(role)) {
                 try {
                     UUID examId = UUID.fromString(examMatcher.group(1));
-                    UUID proctorId = UUID.fromString(principal.getId());
-                    if (!examProctorRepository.isProctorForExam(examId, proctorId)) {
-                        log.warn("SUBSCRIBE rejected: proctor {} not assigned to exam {}", proctorId, examId);
-                        throw new IllegalArgumentException("You are not assigned as a proctor for this exam");
+                    UUID userId = UUID.fromString(principal.getId());
+                    boolean allowed = "TEACHER".equals(role)
+                            ? examProctorRepository.isOwnerOrAssignedProctor(examId, userId)
+                            : examProctorRepository.isProctorForExam(examId, userId);
+                    if (!allowed) {
+                        log.warn("SUBSCRIBE rejected: user {} not owner/assigned to exam {}", userId, examId);
+                        throw new IllegalArgumentException("You are not assigned to this exam");
                     }
                 } catch (IllegalArgumentException e) {
                     throw e;
@@ -176,12 +179,12 @@ public class WebSocketChannelInterceptor implements ChannelInterceptor {
             return;
         }
 
-        // /topic/proctor/** (other sub-paths) — PROCTOR or ADMIN only
+        // /topic/proctor/** (other sub-paths) — TEACHER, PROCTOR or ADMIN only
         if (destination.startsWith("/topic/proctor/")) {
             String role = principal.getRole();
-            if (!"PROCTOR".equals(role) && !"ADMIN".equals(role)) {
+            if (!"PROCTOR".equals(role) && !"TEACHER".equals(role) && !"ADMIN".equals(role)) {
                 log.warn("SUBSCRIBE rejected: role {} cannot subscribe to {}", role, destination);
-                throw new IllegalArgumentException("Only proctors and admins may subscribe to proctor topics");
+                throw new IllegalArgumentException("Only teachers and admins may subscribe to proctor topics");
             }
         }
 

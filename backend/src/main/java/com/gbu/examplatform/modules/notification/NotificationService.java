@@ -101,7 +101,10 @@ public class NotificationService {
      * 24).
      */
     public void sendSessionUpdate(UUID sessionId, Map<String, Object> update) {
+        // Proctor/teacher monitoring channel
         messagingTemplate.convertAndSend("/topic/proctor/session/" + sessionId, update);
-        log.debug("Session update pushed to proctor channel for session {}", sessionId);
+        // Student channel — used to notify student of reinstatement/extension events
+        messagingTemplate.convertAndSend("/queue/exam/" + sessionId + "/update", update);
+        log.debug("Session update pushed for session {}", sessionId);
     }
 }

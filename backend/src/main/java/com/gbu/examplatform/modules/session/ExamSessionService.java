@@ -148,6 +148,24 @@ public class ExamSessionService {
         redisTemplate.opsForValue().set("session:active:" + sessionId, "1", 30, TimeUnit.MINUTES);
     }
 
+    /**
+     * Heartbeat variant called from WebSocket message handlers.
+     * The WS controller already validates session ownership via validateSession(),
+     * so we skip the SecurityUtils-based validateAccess() which requires a
+     * SecurityContextHolder that is NOT populated in clientInboundChannel threads.
+     */
+    @Transactional
+    public void heartbeatFromWs(UUID sessionId) {
+        ExamSession session = findSession(sessionId);
+        if (session.getSubmittedAt() != null || Boolean.TRUE.equals(session.getIsSuspended())) {
+            return; // silently ignore — session already closed
+        }
+        session.setLastHeartbeatAt(Instant.now());
+        sessionRepository.save(session);
+
+        redisTemplate.opsForValue().set("session:active:" + sessionId, "1", 30, TimeUnit.MINUTES);
+    }
+
     @Transactional
     public SessionDto submitSession(UUID sessionId) {
         ExamSession session = findSession(sessionId);
@@ -390,6 +408,14 @@ public class ExamSessionService {
     private void validateAccess(ExamSession session) {
         if (securityUtils.isAdmin())
             return;
+
+        // TEACHER — must own the exam or be assigned as an invigilator
+        if (securityUtils.isTeacher()) {
+            UUID teacherId = securityUtils.getCurrentUserId();
+            UUID examId = session.getEnrollment().getExam().getId();
+            examProctorService.requireProctorScopeForExam(examId); // throws if not creator/proctor
+            return;
+        }
 
         if (securityUtils.isProctor()) {
             UUID proctorId = securityUtils.getCurrentUserId();
