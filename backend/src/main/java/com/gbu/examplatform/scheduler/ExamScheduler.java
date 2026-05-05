@@ -25,12 +25,14 @@ public class ExamScheduler {
     private final ExamService examService;
 
     /**
-     * Every minute at :00 — PUBLISHED → ONGOING when start_time passes.
+     * Every 5 seconds — PUBLISHED → ONGOING when start_time passes.
+     * Using fixedDelay instead of a per-minute cron so the transition happens
+     * within 5 seconds of start_time rather than up to 60 seconds late.
      */
     // No @Transactional here: Spring Data saveAll() provides its own transaction;
     // keeping the scheduler non-transactional avoids sharing a transaction with
     // submitSession() calls that could mark the outer tx rollback-only (Issue 14).
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(fixedDelay = 5_000)
     public void transitionPublishedToOngoing() {
         Instant now = Instant.now();
         List<Exam> toStart = examRepository.findByStatusAndStartTimeBeforeAndIsDeletedFalse(
@@ -42,6 +44,7 @@ public class ExamScheduler {
             examService.markExamsOngoing(toStart);
         }
     }
+
 
     /**
      * Every minute at :30 — ONGOING → COMPLETED when end_time passes,

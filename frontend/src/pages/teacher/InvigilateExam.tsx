@@ -23,7 +23,13 @@ export const InvigilateExam: React.FC = () => {
         onExamAlert: msg => {
             try {
                 const data = typeof msg === 'string' ? JSON.parse(msg) : msg
-                setAlerts(a => [{ sessionId: data.sessionId ?? 0, message: data.message ?? String(msg), type: data.type ?? 'ALERT', time: new Date() }, ...a.slice(0, 99)])
+                setAlerts(a => [{
+                    sessionId: data.sessionId ?? 0,
+                    // broadcastExamAlert sends 'description'; older events may use 'message'
+                    message: data.description || data.message || String(msg),
+                    type: data.eventType ?? data.type ?? 'ALERT',
+                    time: new Date()
+                }, ...a.slice(0, 99)])
             } catch {
                 setAlerts(a => [{ sessionId: 0, message: String(msg), type: 'ALERT', time: new Date() }, ...a.slice(0, 99)])
             }

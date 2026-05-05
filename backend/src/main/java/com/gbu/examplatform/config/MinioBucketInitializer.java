@@ -48,5 +48,40 @@ public class MinioBucketInitializer {
                 log.warn("Could not initialize MinIO bucket '{}': {}", bucket, e.getMessage());
             }
         }
+
+        // Set public-read (anonymous download) policy on profile-photos so the
+        // browser can load unsigned URLs directly (StorageService.getPresignedUrl
+        // returns a plain URL, not a presigned one).
+        applyPublicReadPolicy(profilePhotosBucket);
+    }
+
+    /**
+     * Applies an S3-compatible public-read bucket policy that allows anonymous
+     * GET/HEAD on all objects. MinIO enforces this via its policy API.
+     */
+    private void applyPublicReadPolicy(String bucket) {
+        String policy = """
+                {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                    {
+                      "Effect": "Allow",
+                      "Principal": {"AWS": ["*"]},
+                      "Action": ["s3:GetObject"],
+                      "Resource": ["arn:aws:s3:::%s/*"]
+                    }
+                  ]
+                }
+                """.formatted(bucket);
+        try {
+            minioClient.setBucketPolicy(
+                    io.minio.SetBucketPolicyArgs.builder()
+                            .bucket(bucket)
+                            .config(policy)
+                            .build());
+            log.info("Applied public-read policy to MinIO bucket: {}", bucket);
+        } catch (Exception e) {
+            log.error("Failed to set public-read policy on bucket '{}': {}", bucket, e.getMessage(), e);
+        }
     }
 }

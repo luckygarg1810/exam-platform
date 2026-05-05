@@ -19,8 +19,8 @@ export const TeacherDashboard: React.FC = () => {
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [duplicateExam, setDuplicateExam] = useState<Exam | null>(null)
 
-    const load = () => {
-        setLoading(true)
+    const load = (showSpinner = true) => {
+        if (showSpinner) setLoading(true)
         Promise.all([
             getMyAssignedExams().then(setAssignedExams),
             listExams(0, 100).then(res => setCreatedExams(res.content))
@@ -31,7 +31,12 @@ export const TeacherDashboard: React.FC = () => {
 
     useEffect(() => {
         load()
+        // Poll every 15 s so status changes (PUBLISHED → ONGOING) appear
+        // without the teacher having to manually refresh the page.
+        const interval = setInterval(() => load(false), 15_000)
+        return () => clearInterval(interval)
     }, [])
+
 
     const active = [...createdExams, ...assignedExams].filter(e => e.status === 'ONGOING')
     const upcoming = [...createdExams, ...assignedExams].filter(e => e.status === 'PUBLISHED' || e.status === 'DRAFT')

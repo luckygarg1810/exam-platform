@@ -26,7 +26,6 @@ export const ExamSession: React.FC = () => {
     const [submitting, setSubmitting] = useState(false)
     const [confirmSubmit, setConfirmSubmit] = useState(false)
     const [timeLeft, setTimeLeft] = useState<number>(0)
-    const [warnings, setWarnings] = useState<string[]>([])
     const [suspended, setSuspended] = useState<string | null>(null)
     const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
     const timerRef = useRef<ReturnType<typeof setInterval>>()
@@ -37,10 +36,8 @@ export const ExamSession: React.FC = () => {
     // WebSocket
     const ws = useWebSocket({
         sessionId: sid,
-        onWarning: msg => {
-            setWarnings(w => [...w, msg])
-            toast('⚠️ Warning from proctor: ' + msg, { icon: '⚠️', style: { background: '#fef3c7' } })
-        },
+        // onWarning intentionally omitted — violations are reported silently
+        // to the proctor/teacher dashboard only, never shown to the student.
         onSuspend: reason => {
             setSuspended(reason)
             stopCapture()
@@ -200,11 +197,6 @@ export const ExamSession: React.FC = () => {
             <div className="bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <span className="text-white font-semibold text-sm">{session?.examTitle ?? 'Exam'}</span>
-                    {warnings.length > 0 && (
-                        <span className="bg-yellow-500 text-yellow-900 text-xs font-medium px-2 py-0.5 rounded">
-                            {warnings.length} warning{warnings.length > 1 ? 's' : ''}
-                        </span>
-                    )}
                 </div>
                 <div className="flex items-center gap-4">
                     <span className="text-xs text-gray-400">

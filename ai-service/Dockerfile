@@ -3,7 +3,7 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_DEFAULT_TIMEOUT=100
+    PIP_DEFAULT_TIMEOUT=200
 
 # ✅ Faster apt (no recommended packages)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -21,19 +21,26 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# ✅ 🔥 Use fast mirror + cache
+# ✅ Upgrade pip using official PyPI
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip wheel \
-    -i https://pypi.tuna.tsinghua.edu.cn/simple
+    --retries 5 --timeout 200
 
-# ✅ 🔥 Install ALL deps together (better resolver + fewer layers)
+# ✅ Install dlib separately (long compile — cached as its own layer)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install "dlib==19.24.4" \
+    --retries 5 --timeout 200
+
+# ✅ Install torch CPU-only (avoids pulling the massive CUDA build ~2GB)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install torch torchvision \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --retries 5 --timeout 200
+
+# ✅ Install remaining deps from official PyPI
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt \
-    -i https://pypi.tuna.tsinghua.edu.cn/simple
-
-# ❗ OPTIONAL: If you DON'T need GPU → REMOVE THIS from requirements.txt:
-# nvidia_nccl_cu12
-# torch with CUDA
+    --retries 5 --timeout 200
 
 # ✅ Pre-download YOLO model (cached)
 RUN --mount=type=cache,target=/root/.cache/ultralytics \

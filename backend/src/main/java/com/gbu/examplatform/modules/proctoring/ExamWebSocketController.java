@@ -31,10 +31,10 @@ import java.util.UUID;
  * set in WebSocketConfig (/app).
  *
  * Student sends to:
- * /app/exam/{sessionId}/frame → decode Base64, relay to RabbitMQ frame.analysis
- * /app/exam/{sessionId}/audio → decode Base64, relay to RabbitMQ audio.analysis
- * /app/exam/{sessionId}/event → save behavior event to DB, relay to RabbitMQ behavior.events
- * /app/exam/{sessionId}/heartbeat → update session heartbeat
+ *   /app/exam/{sessionId}/frame     → decode Base64, relay to RabbitMQ frame.analysis
+ *   /app/exam/{sessionId}/audio     → decode Base64, relay to RabbitMQ audio.analysis
+ *   /app/exam/{sessionId}/event     → save behavior event to DB, relay to RabbitMQ behavior.events
+ *   /app/exam/{sessionId}/heartbeat → update session heartbeat
  *
  * NOTE: @MessageMapping handlers run in the clientInboundChannel thread pool which
  * does NOT inherit Spring Security's SecurityContextHolder. Authentication is read
@@ -50,10 +50,12 @@ public class ExamWebSocketController {
     private final ExamSessionRepository sessionRepository;
     private final ExamSessionService sessionService;
     private final BehaviorEventRepository behaviorEventRepository;
+    private final ProctoringEventRepository proctoringEventRepository;
+    private final ViolationSummaryRepository violationSummaryRepository;
     private final NotificationService notificationService;
     private final StringRedisTemplate stringRedisTemplate;
 
-    // Tab-switch threshold for immediate warning
+    // Tab-switch threshold before alert is escalated to HIGH severity
     private static final int TAB_SWITCH_WARN_THRESHOLD = 3;
 
     // Rate limits per session per second for each handler type
@@ -163,8 +165,10 @@ public class ExamWebSocketController {
                 .build();
         behaviorEventRepository.save(be);
 
-        // Quick rule-based check: warn after N tab switches without waiting for AI
-        applyQuickRules(sessionId, eventType);
+        // Save a ProctoringEvent, update ViolationSummary counters, and
+        // broadcast to the teacher's live alert feed so violations appear
+        // immediately on the dashboard without waiting for the AI service.
+        applyQuickRules(session, sessionId, eventType);
 
         // Relay to RabbitMQ for XGBoost behavior analysis
         Map<String, Object> message = new HashMap<>(payload);
@@ -270,27 +274,93 @@ public class ExamWebSocketController {
         return count != null && count > limitPerSecond;
     }
 
-    private void applyQuickRules(UUID sessionId, String eventType) {
-        if ("TAB_SWITCH".equalsIgnoreCase(eventType) || "FOCUS_LOST".equalsIgnoreCase(eventType)) {
-            long tabSwitchCount = behaviorEventRepository
-                    .countBySessionIdAndEventType(sessionId, "TAB_SWITCH")
-                    + behaviorEventRepository.countBySessionIdAndEventType(sessionId, "FOCUS_LOST");
+    /**
+     * Applies rule-based violation logic for browser behavior events.
+     *
+     * For every recognized browser event this now:
+     *   1. Saves a {@link ProctoringEvent} (source=BROWSER) so it appears in the
+     *      teacher's violation event list on the session detail page.
+     *   2. Increments the matching {@link ViolationSummary} counter so the summary
+     *      chips update without waiting for the AI service.
+     *   3. Broadcasts a real-time alert to the teacher's live feed via
+     *      {@link NotificationService#broadcastExamAlert} so the InvigilateExam
+     *      dashboard shows the violation instantly.
+     *
+     * Tab switches below TAB_SWITCH_WARN_THRESHOLD are still recorded but sent
+     * at MEDIUM severity to avoid spamming the teacher on minor accidental blurs.
+     */
+    private void applyQuickRules(ExamSession session, UUID sessionId, String eventType) {
+        ProctoringEvent.EventType peType;
+        ProctoringEvent.Severity severity;
+        String description;
 
-            if (tabSwitchCount >= TAB_SWITCH_WARN_THRESHOLD) {
-                notificationService.sendWarning(sessionId,
-                        "Warning: You have switched away from the exam " + tabSwitchCount
-                                + " times. Continuing may result in disqualification.");
+        switch (eventType.toUpperCase()) {
+            case "TAB_SWITCH", "FOCUS_LOST" -> {
+                long tabSwitchCount = behaviorEventRepository
+                        .countBySessionIdAndEventType(sessionId, "TAB_SWITCH")
+                        + behaviorEventRepository.countBySessionIdAndEventType(sessionId, "FOCUS_LOST");
+
+                peType = ProctoringEvent.EventType.TAB_SWITCH;
+                severity = tabSwitchCount >= TAB_SWITCH_WARN_THRESHOLD
+                        ? ProctoringEvent.Severity.HIGH
+                        : ProctoringEvent.Severity.MEDIUM;
+                description = "Tab switch detected (total: " + tabSwitchCount + ")";
+            }
+            case "FULLSCREEN_EXIT" -> {
+                peType = ProctoringEvent.EventType.FULLSCREEN_EXIT;
+                severity = ProctoringEvent.Severity.MEDIUM;
+                description = "Student exited fullscreen mode";
+            }
+            case "COPY_PASTE" -> {
+                peType = ProctoringEvent.EventType.COPY_PASTE;
+                severity = ProctoringEvent.Severity.HIGH;
+                description = "Copy/paste attempt detected";
+            }
+            default -> {
+                // Unknown browser event — no structured rule; logged by caller
+                log.debug("No quick rule for browser event '{}' on session {}", eventType, sessionId);
+                return;
             }
         }
 
-        if ("FULLSCREEN_EXIT".equalsIgnoreCase(eventType)) {
-            notificationService.sendWarning(sessionId,
-                    "Warning: You exited fullscreen mode. Please switch back immediately.");
-        }
+        // 1. Persist ProctoringEvent (visible in teacher's session detail list)
+        saveProctoringEvent(sessionId, peType, severity, description);
 
-        if ("COPY_PASTE".equalsIgnoreCase(eventType)) {
-            notificationService.sendWarning(sessionId,
-                    "Warning: Copy/paste detected. This action has been recorded.");
+        // 2. Increment ViolationSummary counter (visible in summary chips)
+        updateViolationSummaryCounter(session, sessionId, peType);
+
+        // 3. Broadcast to teacher's live alert feed on the InvigilateExam page
+        UUID examId = session.getEnrollment().getExam().getId();
+        notificationService.broadcastExamAlert(
+                examId, sessionId, peType.name(), severity.name(), 1.0, description);
+
+        log.debug("Quick-rule violation broadcast — session={} type={} severity={}",
+                sessionId, peType.name(), severity.name());
+    }
+
+    private void saveProctoringEvent(UUID sessionId, ProctoringEvent.EventType type,
+            ProctoringEvent.Severity severity, String description) {
+        ProctoringEvent pe = ProctoringEvent.builder()
+                .sessionId(sessionId)
+                .eventType(type)
+                .severity(severity)
+                .confidence(1.0)
+                .description(description)
+                .source(ProctoringEvent.EventSource.BROWSER)
+                .build();
+        proctoringEventRepository.save(pe);
+    }
+
+    private void updateViolationSummaryCounter(ExamSession session, UUID sessionId,
+            ProctoringEvent.EventType type) {
+        ViolationSummary summary = violationSummaryRepository.findBySession_Id(sessionId)
+                .orElseGet(() -> ViolationSummary.builder().session(session).build());
+        switch (type) {
+            case TAB_SWITCH -> summary.setTabSwitchCount(summary.getTabSwitchCount() + 1);
+            case FULLSCREEN_EXIT -> summary.setFullscreenExitCount(summary.getFullscreenExitCount() + 1);
+            case COPY_PASTE -> summary.setCopyPasteCount(summary.getCopyPasteCount() + 1);
+            default -> { /* no counter mapping */ }
         }
+        violationSummaryRepository.save(summary);
     }
 }
